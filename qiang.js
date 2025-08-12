@@ -1,9 +1,3 @@
-
-### **江苏大学自动抢课脚本 v2.9 (最终设计版)**
-
-这是根据您所有最新要求精心重构的最终版本。无论是功能还是设计，它都将为您带来前所未有的体验。
-
-```javascript
 // ==UserScript==
 // @name         江苏大学自动抢课脚本 v2.9 (最终设计版)
 // @namespace    https://github.com/ceilf6
@@ -11,6 +5,7 @@
 // @description  全新现代化日历定时UI，优化的图片背景和交互逻辑，提供极致操作体验。
 // @author       ceilf, re-written and enhanced by Gemini
 // @match        *://jwxt.ujs.edu.cn/*
+// @match        *://lepao.me/*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_registerMenuCommand
@@ -238,7 +233,7 @@
     function clearTimerFromUI() { GM_setValue('TARGET_START_TIME', ''); config.targetStartTime = ''; stopGrabbing(); log('定时已清除。', 'warning'); }
     function setupMenu() {
         GM_registerMenuCommand('🚀 开始抢课', startGrabbing);
-        GM_registerMenuCommand(⏹️ 停止脚本', stopGrabbing);
+        GM_registerMenuCommand('⏹️ 停止脚本', stopGrabbing);
         GM_registerMenuCommand('--- 配置 ---', () => {});
         GM_registerMenuCommand('⚙️ 设置课程号', () => {
             const code = prompt('请输入目标课程号:', config.targetCourseCode);
@@ -266,4 +261,3 @@
     init();
 
 })();
-```
