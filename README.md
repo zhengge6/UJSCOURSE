@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://bed.djxs.xyz/file/BQACAgUAAyEGAASVl6k_AAIC_WgxL6hhgZCue4Vx_DDK2qMbmusVAALiFAAC9fSJVep4WzgN_S9WNgQ.png" alt="UJSCOURSE Logo" width="120" height="120">
+<img src="https://github.com/zhengge6/UJSCOURSE/blob/main/b2177aee594042e9ae9dce87ea795d09.png" alt="UJSCOURSE Logo" width="120" height="120">
 
 
 # UJSCOURSE
