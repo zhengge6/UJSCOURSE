@@ -2,9 +2,10 @@
 
 <img src="https://bed.djxs.xyz/file/BQACAgUAAyEGAASVl6k_AAIC_WgxL6hhgZCue4Vx_DDK2qMbmusVAALiFAAC9fSJVep4WzgN_S9WNgQ.png" alt="UJSCOURSE Logo" width="120" height="120">
 
+
 # UJSCOURSE
 
-**🎯 江苏大学智能抢课助手**
+**🎯 UJS智能抢课助手**
 
 *一个功能强大、界面精美的自动抢课脚本*
 
