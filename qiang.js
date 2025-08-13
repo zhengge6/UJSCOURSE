@@ -5,7 +5,6 @@
 // @description  全新现代化日历定时UI，优化的图片背景和交互逻辑，提供极致操作体验。
 // @author       ceilf, re-written and enhanced by Gemini
 // @match        *://jwxt.ujs.edu.cn/*
-// @match        *://lepao.me/*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_registerMenuCommand
