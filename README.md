@@ -74,17 +74,14 @@
 <div align="center">
 
 ### 📅 日历定时选择器
-<img src="https://raw.githubusercontent.com/zhengge6/UJSCOURSE/main/images/calendar-picker.png" alt="日历定时选择器" width="400">
 
 *精美的日历界面，支持精确到秒的定时设置*
 
 ### 🎛️ 主控制面板
-<img src="https://raw.githubusercontent.com/zhengge6/UJSCOURSE/main/images/main-panel.png" alt="主控制面板" width="400">
 
 *现代化毛玻璃设计，实时显示运行状态和日志*
 
 ### 🔗 教务系统集成
-<img src="https://raw.githubusercontent.com/zhengge6/UJSCOURSE/main/images/system-integration.png" alt="教务系统集成" width="600">
 
 ## 🚀 快速开始
 
