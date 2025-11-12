@@ -2,11 +2,11 @@
 
 <img src="https://github.com/zhengge6/UJSCOURSE/raw/main/logo.png" alt="UJSCOURSE Logo" height="120" style="border-radius:24px;box-shadow:0 4px 24px #0002;">
 
-# UJSCOURSE
+# UJS-AUTO-REVIEW
 
-**🎯 江苏大学智能抢课助手**
+**✏️ 江苏大学自动评教助手**
 
-<sub style="font-size:18px;color:#6c757d;">自动化 · 智能 · 多课程支持 · 现代化视觉体验</sub>
+<sub style="font-size:18px;color:#6c757d;">自动化 · 智能  · 现代化视觉体验</sub>
 
 <div style="margin:16px 0;">
   <a href="https://github.com/zhengge6/UJSCOURSE"><img src="https://img.shields.io/badge/version-3.0.0-brightgreen?style=for-the-badge&logo=github"></a>
@@ -29,6 +29,12 @@
 
 ---
 
+**[🚀 快速开始](#快速开始) • [📖 使用指南](#使用指南) • [⚙️ 配置选项](#配置选项) • [❓ 常见问题](#常见问题)**
+
+</div>
+
+---
+
 ## ✨ 核心特性
 
 <div align="center">
@@ -37,40 +43,38 @@
 <tr>
 <td width="25%" valign="top">
 
-#### 🎨 现代化设计
-- 毛玻璃高斯模糊
-- 流畅动画与过渡
-- 响应式布局
-- 深色模式自动适配
+#### 🚀 智能填充
+- 自动识别单选题型
+- 精准匹配多选框
+- 智能填充文本评价
+- 模拟人工操作逻辑
 
 </td>
 <td width="25%" valign="top">
 
-#### 🧠 智能抢课
-- 多课程同步支持
-- 自动余量检测
-- 冲突智能规避
-- 多教学班自动尝试
-- 失败后自动重试
+#### 🔄 双模式支持
+- 「仅填充」模式（安全验证）
+- 「填充并提交」模式（高效快捷）
+- 模式一键切换
+- 操作透明可追溯
 
 </td>
 <td width="25%" valign="top">
 
-#### ⏰ 精确定时
-- 可视化课程管理
-- 日历选择定时
-- 秒级定时设置
-- 倒计时实时显示
-- 自动启动
+#### 🎯 高度兼容
+- 完美适配麦可思系统
+- 支持江苏大学全部评教场景
+- 兼容主流浏览器
+- 多脚本管理器支持
 
 </td>
 <td width="25%" valign="top">
 
-#### 🛡️ 安全可靠
-- 开源透明
-- 无恶意代码
-- 本地数据存储
-- 隐私安全保护
+#### 🛠️ 灵活配置
+- 自定义评价倾向
+- 可修改文本内容
+- 单选范围自由设定
+- 无需代码知识即可调整
 
 </td>
 </tr>
@@ -79,7 +83,7 @@
 
 ---
 
-## 🌟 v3.0.0 新功能亮点
+## 🌟 功能亮点
 
 <div align="center">
 
@@ -87,18 +91,20 @@
 <tr>
 <td width="50%">
 
-#### 📋 课程管理器
-- 课程添加/删除一目了然
-- 无限数量课程支持
-- 一键管理所有目标课程
+#### 🧠 智能选择算法
+- 随机化选择避免机械模式
+- 支持区间设置（如仅选"非常同意"和"同意"）
+- 自动跳过已完成评价
+- 实时控制台日志反馈
 
 </td>
 <td width="50%">
 
-#### 🔄 智能轮询
-- 自动遍历所有目标课程
-- 优先抢选余量充足的班级
-- 日志详细记录抢课进度
+#### 🔒 安全可靠
+- 开源透明无后门
+- 本地运行不泄露数据
+- 操作留痕便于核查
+- 无恶意提交风险
 
 </td>
 </tr>
@@ -108,13 +114,11 @@
 
 ---
 
-<!-- 预览图片模块已移除 -->
-
-## 🚀 快速开始指南
+## 🚀 快速开始
 
 <div align="center">
 
-### ⚡ 三步开启智能抢课体验
+### ⚡ 三步完成自动评教配置
 
 </div>
 
@@ -128,11 +132,10 @@
 🐱 <b>脚本猫（推荐）</b><br>
 <a href="https://docs.scriptcat.org/"><img src="https://img.shields.io/badge/脚本猫-立即下载-ff6b35?style=for-the-badge&logo=tampermonkey"></a>
 <ul>
-<li>极速启动</li>
-<li>安全合规</li>
-<li>自动检测更新</li>
-<li>现代UI</li>
-<li>强力中文支持</li>
+<li>轻量高效</li>
+<li>自动更新</li>
+<li>中文优化</li>
+<li>模块化管理</li>
 </ul>
 下载：
 <a href="https://microsoftedge.microsoft.com/addons/detail/%E8%84%9A%E6%9C%AC%E7%8C%AB/liilgpjgabokdklappibcjfablkpcekh">Edge</a> ·
@@ -144,9 +147,9 @@
 🐒 <b>Tampermonkey（备选）</b><br>
 <a href="https://www.tampermonkey.net/"><img src="https://img.shields.io/badge/油猴-备选方案-blue?style=for-the-badge&logo=tampermonkey"></a>
 <ul>
-<li>成熟稳定</li>
 <li>全平台支持</li>
-<li>庞大社区</li>
+<li>功能全面</li>
+<li>社区成熟</li>
 </ul>
 <a href="https://www.tampermonkey.net/">官方网站</a>
 
@@ -155,58 +158,51 @@
 </table>
 </li>
 <li>
-<b>安装抢课脚本</b>
+<b>安装评教脚本</b>
 <pre style="background:#f8f8f8;border-radius:8px;padding:8px;">
-1. 复制脚本代码
-2. 在脚本管理器中新建脚本
-3. 粘贴保存
-4. 访问江苏大学教务系统
+1. 复制完整脚本代码
+2. 在脚本管理器中点击「新建脚本」
+3. 替换默认内容并保存
+4. 启用脚本并刷新评教页面
 </pre>
 </li>
 <li>
-<b>享受抢课助手</b>
+<b>开始自动评教</b>
 <div align="center" style="margin:12px 0;">
-🎉 安装完成，访问教务系统即可体验智能抢课
+🎉 进入评教页面，点击「一键评教」或「评教并提交」即可
 </div>
 </li>
 </ol>
 
 ---
 
-## 📖 详细使用教程
+## 📖 使用指南
 
 <div align="center">
 
-### 🪄 三步轻松抢课
+### 🪄 简单两步完成评教
 
 </div>
 
 <table>
 <tr>
-<td width="33%" valign="top">
+<td width="50%" valign="top">
 
-#### 1️⃣ 设置课程
-- 通过主界面“📋 管理课程”按钮添加
-- 支持一键删除
-- 右键菜单批量设置，逗号分隔课程号
-
-</td>
-<td width="33%" valign="top">
-
-#### 2️⃣ 配置定时
-- “设置/修改定时”按钮
-- 日历选择器支持到秒
-- 倒计时实时显示
-- 可随时修改或取消
+#### 1️⃣ 基础操作
+- 访问学校评教系统
+- 选择需要评价的课程
+- 页面自动显示两个按钮：
+  - 「一键评教」：仅填充内容不提交
+  - 「评教并提交」：填充后自动提交
 
 </td>
-<td width="33%" valign="top">
+<td width="50%" valign="top">
 
-#### 3️⃣ 开始抢课
-- 自动轮询所有目标课程
-- 优先抢余量课程，智能避免冲突
-- 实时日志与抢课进度
-- 成功即自动通知与停止
+#### 2️⃣ 最佳实践
+- 首次使用建议选择「一键评教」
+- 检查填充内容是否符合预期
+- 确认无误后可手动提交或使用自动提交
+- 切换课程后按钮会自动重新加载
 
 </td>
 </tr>
@@ -214,120 +210,34 @@
 
 ---
 
-## 📚 高级功能详解
+## ⚙️ 配置选项
 
 <details>
-<summary><b>📋 课程管理器完全指南</b></summary>
+<summary><b>📋 自定义评教参数</b></summary>
 
-- 主界面点击“📋 管理课程”
-- 右键网页选择“📋 课程管理器”
-- 批量设置模式，一次输入多个课程号
+通过修改脚本中的`config`对象调整行为：
 
-<b>添加/删除课程</b>：
-- 输入完整课程号，点击添加或回车
-- 课程即刻出现在列表
-- 删除按钮一键移除
-
-<b>实时预览：</b>
-- 主界面显示课程数量
-- 所有更改即时生效
-
-</details>
-
-<details>
-<summary><b>🤖 智能抢课算法原理</b></summary>
-
-```mermaid
-graph TD
-    A[开始扫描] --> B[检测所有课程]
-    B --> C{有余量?}
-    C -->|是| D[检查时间冲突]
-    C -->|否| E[下一个课程]
-    D --> F{冲突?}
-    F -->|否| G[尝试选课]
-    F -->|是| H[跳过并记录]
-    G --> I[成功?]
-    I -->|是| J[🎉 通知并停止]
-    I -->|否| K[记录失败,继续]
-    E --> L[全部检测完毕]
-    K --> L
-    H --> L
-    L --> A
-```
-
-<b>算法优势：</b>
-- 优先剩余名额班级
-- 自动规避冲突
-- 2秒轮询，最多尝试1000次，失败自动停止
-- 详细日志与进度统计
-
-</details>
-
----
-
-## ❓ 常见问题
-
-<details><summary><b>如何设置多个课程号？</b></summary>
-主界面逐个添加或右键菜单批量输入（逗号分隔）。
-</details>
-
-<details><summary><b>多课程模式优先级如何？</b></summary>
-优先抢余量充足的班级，自动规避冲突，抢到即自动停止。
-</details>
-
-<details><summary><b>脚本无法启动？</b></summary>
-检查脚本管理器安装、脚本启用、网址匹配、刷新页面。
-</details>
-
-<details><summary><b>课程号显示未设置？</b></summary>
-确认数字格式、已保存设置、重新设置。
-</details>
-
-<details><summary><b>定时功能不工作？</b></summary>
-确认设置为未来时间，页面常开，电脑唤醒。
-</details>
-
-<details><summary><b>如何优化成功率？</b></summary>
-设置3-5门备选课程，提前几分钟启动，保持网络畅通。
-</details>
-
----
-
-## ⚠️ 免责声明
-
-<div align="center" style="color:#B22222;font-size:16px;">
-
-本项目仅供学习交流，请遵守校规<br>
-新版本支持多课程抢课、可视化管理器、智能算法<br>
-使用工具造成的后果由用户自负
-
-</div>
-
----
-
-<div align="center">
-
-## 🤝 贡献与支持
-
-**🆕 v3.0.0 - 多课程支持版本**
-
-如果这个项目对你有帮助，请点个 ⭐️
-
-<div style="margin:8px 0;">
-  <a href="https://github.com/zhengge6/UJSCOURSE/stargazers"><img src="https://img.shields.io/github/stars/zhengge6/UJSCOURSE?style=social"></a>
-  <a href="https://github.com/zhengge6/UJSCOURSE/network/members"><img src="https://img.shields.io/github/forks/zhengge6/UJSCOURSE?style=social"></a>
-</div>
-
-<b>版本历程</b>
-- <b>v3.0.0</b> 多课程支持、课程管理器、智能选课算法
-- <b>v2.9.0</b> 现代UI、日历定时器
-- <b>v2.8.0</b> 性能优化、错误增强
-
-<b>交流反馈</b>：
-<a href="https://github.com/zhengge6/UJSCOURSE/issues"><img src="https://img.shields.io/badge/Issues-GitHub-red?style=for-the-badge&logo=github"></a>
-<a href="https://github.com/zhengge6/UJSCOURSE/discussions"><img src="https://img.shields.io/badge/Discussions-GitHub-blue?style=for-the-badge&logo=github"></a>
-
----
+```javascript
+const config = {
+  // 提交模式：true自动提交 / false仅填充
+  autoSubmit: false,
+  
+  // 单选范围：0=非常同意，1=同意，2=一般，3=不同意，4=非常不同意
+  radio: [0, 1],
+  
+  // 多选题策略：true全选 / false全不选
+  checkbox: true,
+  
+  // 文本评价内容
+  comment: "我对本课程非常满意。",
+  
+  // 系统参数（通常无需修改）
+  reviewHref: "answer",
+  reviewParentElement: "div.ant-tabs ...",
+  reviewRadioField: ["非常", "", "一般", "不", "非常不"],
+  reviewSubmitElement: ".ant-btn.ant-btn-primary:not(.--lcandy2-mycos-auto-review)",
+  reviewModalElement: "div.ant-modal-body"
+};
 
 ### 📄 开源协议
 
