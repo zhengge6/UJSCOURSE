@@ -1,35 +1,19 @@
 <div align="center">
 
-<img src="https://github.com/zhengge6/UJSCOURSE/raw/main/logo.png" alt="UJSCOURSE Logo" height="120" style="border-radius:24px;box-shadow:0 4px 24px #0002;">
+<img src="https://github.com/zhengge6/UJSCOURSE/raw/main/logo.png" alt="UJSCOURSE Logo" height="120" style="border-radius:24px; margin-bottom: 20px;">
 
 # UJS-AUTO-REVIEW
 
 **✏️ 江苏大学自动评教助手**
 
-<sub style="font-size:18px;color:#6c757d;">自动化 · 智能  · 现代化视觉体验</sub>
+[![Version](https://img.shields.io/badge/version-3.0.0-brightgreen?style=flat-square&logo=github)](https://github.com/zhengge6/UJSCOURSE)
+[![ScriptCat](https://img.shields.io/badge/脚本猫-推荐-ff6b35?style=flat-square&logo=tampermonkey)](https://docs.scriptcat.org/)
+[![Platform](https://img.shields.io/badge/platform-UserScript-blue?style=flat-square&logo=javascript)](https://docs.scriptcat.org/)
+[![License](https://img.shields.io/badge/license-MIT-yellow?style=flat-square)](LICENSE)
 
-<div style="margin:16px 0;">
-  <a href="https://github.com/zhengge6/UJSCOURSE"><img src="https://img.shields.io/badge/version-3.0.0-brightgreen?style=for-the-badge&logo=github"></a>
-  <a href="https://docs.scriptcat.org/"><img src="https://img.shields.io/badge/脚本猫-推荐-ff6b35?style=for-the-badge&logo=tampermonkey"></a>
-  <a href="https://docs.scriptcat.org/"><img src="https://img.shields.io/badge/platform-UserScript-blue?style=for-the-badge&logo=javascript"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow?style=for-the-badge"></a>
-</div>
+<p style="font-size:16px; color:#6c757d;">自动化 · 智能 · 现代化视觉体验</p>
 
-<div style="margin:8px 0;">
-  <a href="https://github.com/zhengge6/UJSCOURSE/stargazers"><img src="https://img.shields.io/github/stars/zhengge6/UJSCOURSE?style=social"></a>
-  <a href="https://github.com/zhengge6/UJSCOURSE/network/members"><img src="https://img.shields.io/github/forks/zhengge6/UJSCOURSE?style=social"></a>
-  <a href="https://github.com/zhengge6/UJSCOURSE/issues"><img src="https://img.shields.io/github/issues/zhengge6/UJSCOURSE?style=social"></a>
-</div>
-
----
-
-**[🚀 快速开始](#快速开始指南) • [📖 使用文档](#详细使用教程) • [❓ 常见问题](#常见问题)**
-
-</div>
-
----
-
-**[🚀 快速开始](#快速开始) • [📖 使用指南](#使用指南) • [⚙️ 配置选项](#配置选项) • [❓ 常见问题](#常见问题)**
+[🚀 快速开始](#-快速开始) • [📖 使用指南](#-使用指南) • [⚙️ 配置选项](#-配置选项) • [❓ 常见问题](#-常见问题)
 
 </div>
 
@@ -37,217 +21,94 @@
 
 ## ✨ 核心特性
 
-<div align="center">
-
-<table>
-<tr>
-<td width="25%" valign="top">
-
-#### 🚀 智能填充
-- 自动识别单选题型
-- 精准匹配多选框
-- 智能填充文本评价
-- 模拟人工操作逻辑
-
-</td>
-<td width="25%" valign="top">
-
-#### 🔄 双模式支持
-- 「仅填充」模式（安全验证）
-- 「填充并提交」模式（高效快捷）
-- 模式一键切换
-- 操作透明可追溯
-
-</td>
-<td width="25%" valign="top">
-
-#### 🎯 高度兼容
-- 完美适配麦可思系统
-- 支持江苏大学全部评教场景
-- 兼容主流浏览器
-- 多脚本管理器支持
-
-</td>
-<td width="25%" valign="top">
-
-#### 🛠️ 灵活配置
-- 自定义评价倾向
-- 可修改文本内容
-- 单选范围自由设定
-- 无需代码知识即可调整
-
-</td>
-</tr>
-</table>
-</div>
-
----
-
-## 🌟 功能亮点
-
-<div align="center">
-
-<table>
-<tr>
-<td width="50%">
-
-#### 🧠 智能选择算法
-- 随机化选择避免机械模式
-- 支持区间设置（如仅选"非常同意"和"同意"）
-- 自动跳过已完成评价
-- 实时控制台日志反馈
-
-</td>
-<td width="50%">
-
-#### 🔒 安全可靠
-- 开源透明无后门
-- 本地运行不泄露数据
-- 操作留痕便于核查
-- 无恶意提交风险
-
-</td>
-</tr>
-</table>
-
-</div>
+| 🚀 智能填充 | 🔄 双模式支持 | 🎯 高度兼容 | 🛠️ 灵活配置 |
+| :--- | :--- | :--- | :--- |
+| 自动识别单选/多选题型 | 「仅填充」安全校验模式 | 完美适配**麦可思**系统 | 自定义评价倾向 |
+| 精准匹配分值逻辑 | 「填充并提交」高效模式 | 兼容主流浏览器 & 插件 | 无需代码知识即可调整 |
+| 智能生成文本评价 | 操作透明，实时日志 | 支持 UJS 全部评教场景 | 模拟人工操作逻辑 |
 
 ---
 
 ## 🚀 快速开始
 
-<div align="center">
+### ⚡ 三步完成配置
 
-### ⚡ 三步完成自动评教配置
+#### 1. 安装脚本管理器 (选其一)
+* **🐱 脚本猫 (推荐)**：针对中文环境优化，功能强大且轻量。  
+    [Edge 下载](https://microsoftedge.microsoft.com/addons/detail/%E8%84%9A%E6%9C%AC%E7%8C%AB/liilgpjgabokdklappibcjfablkpcekh) · [Chrome 下载](https://chrome.google.com/webstore/detail/scriptcat/ndcooeababalnlpkfedmmbbbgkljhpjf)
+* **🐒 Tampermonkey**：全球最流行的用户脚本管理器。  
+    [官方网站](https://www.tampermonkey.net/)
 
-</div>
+#### 2. 安装评教脚本
+1. 点击本仓库的 `main.js` (或对应脚本文件) 查看代码并复制。
+2. 在脚本管理器中选择 **「新建脚本」**。
+3. 替换默认内容并点击 **「保存」**。
 
-<ol>
-<li>
-<b>安装脚本管理器</b>
-<table>
-<tr>
-<td width="50%" align="center" valign="top">
-
-🐱 <b>脚本猫（推荐）</b><br>
-<a href="https://docs.scriptcat.org/"><img src="https://img.shields.io/badge/脚本猫-立即下载-ff6b35?style=for-the-badge&logo=tampermonkey"></a>
-<ul>
-<li>轻量高效</li>
-<li>自动更新</li>
-<li>中文优化</li>
-<li>模块化管理</li>
-</ul>
-下载：
-<a href="https://microsoftedge.microsoft.com/addons/detail/%E8%84%9A%E6%9C%AC%E7%8C%AB/liilgpjgabokdklappibcjfablkpcekh">Edge</a> ·
-<a href="https://chrome.google.com/webstore/detail/scriptcat/ndcooeababalnlpkfedmmbbbgkljhpjf">Chrome</a>
-
-</td>
-<td width="50%" align="center" valign="top">
-
-🐒 <b>Tampermonkey（备选）</b><br>
-<a href="https://www.tampermonkey.net/"><img src="https://img.shields.io/badge/油猴-备选方案-blue?style=for-the-badge&logo=tampermonkey"></a>
-<ul>
-<li>全平台支持</li>
-<li>功能全面</li>
-<li>社区成熟</li>
-</ul>
-<a href="https://www.tampermonkey.net/">官方网站</a>
-
-</td>
-</tr>
-</table>
-</li>
-<li>
-<b>安装评教脚本</b>
-<pre style="background:#f8f8f8;border-radius:8px;padding:8px;">
-1. 复制完整脚本代码
-2. 在脚本管理器中点击「新建脚本」
-3. 替换默认内容并保存
-4. 启用脚本并刷新评教页面
-</pre>
-</li>
-<li>
-<b>开始自动评教</b>
-<div align="center" style="margin:12px 0;">
-🎉 进入评教页面，点击「一键评教」或「评教并提交」即可
-</div>
-</li>
-</ol>
+#### 3. 开始使用
+* 登录江苏大学评教系统。
+* 进入评教页面后，页面会自动加载 **「一键评教」** 悬浮按钮。
 
 ---
 
 ## 📖 使用指南
 
-<div align="center">
+### 🪄 最佳实践流程
 
-### 🪄 简单两步完成评教
+1. **初次试用**：建议先使用 **「一键评教」** 模式。脚本会自动勾选选项并填写评语，但不会自动提交。
+2. **人工复核**：检查填充的内容是否符合你的真实意图。
+3. **高效模式**：确认配置无误后，可点击 **「评教并提交」** 一键完成。
 
-</div>
-
-<table>
-<tr>
-<td width="50%" valign="top">
-
-#### 1️⃣ 基础操作
-- 访问学校评教系统
-- 选择需要评价的课程
-- 页面自动显示两个按钮：
-  - 「一键评教」：仅填充内容不提交
-  - 「评教并提交」：填充后自动提交
-
-</td>
-<td width="50%" valign="top">
-
-#### 2️⃣ 最佳实践
-- 首次使用建议选择「一键评教」
-- 检查填充内容是否符合预期
-- 确认无误后可手动提交或使用自动提交
-- 切换课程后按钮会自动重新加载
-
-</td>
-</tr>
-</table>
+> [!TIP]
+> 脚本内置了随机偏移算法，每次选择的选项会在你设定的范围内浮动，模拟真实人工评价分布。
 
 ---
 
 ## ⚙️ 配置选项
 
-<details>
-<summary><b>📋 自定义评教参数</b></summary>
-
-通过修改脚本中的`config`对象调整行为：
+你可以通过修改脚本头部的 `config` 常量来自定义行为：
 
 ```javascript
 const config = {
-  // 提交模式：true自动提交 / false仅填充
+  // 提交模式：true 自动提交 / false 仅填充内容
   autoSubmit: false,
   
-  // 单选范围：0=非常同意，1=同意，2=一般，3=不同意，4=非常不同意
+  // 单选权重：0=非常同意, 1=同意, 2=一般, 3=不同意, 4=非常不同意
+  // 例如 [0, 1] 表示会在“非常同意”和“同意”中随机选择
   radio: [0, 1],
   
-  // 多选题策略：true全选 / false全不选
-  checkbox: true,
-  
   // 文本评价内容
-  comment: "我对本课程非常满意。",
+  comment: "老师授课认真，逻辑清晰，受益匪浅。",
   
-  // 系统参数（通常无需修改）
-  reviewHref: "answer",
-  reviewParentElement: "div.ant-tabs ...",
-  reviewRadioField: ["非常", "", "一般", "不", "非常不"],
-  reviewSubmitElement: ".ant-btn.ant-btn-primary:not(.--lcandy2-mycos-auto-review)",
-  reviewModalElement: "div.ant-modal-body"
+  // 系统选择器参数（通常无需修改）
+  reviewHref: "answer"
 };
 
-### 📄 开源协议
-
-<a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge"></a>
-
-<sub>Copyright © 2025 <a href="https://github.com/zhengge6">zhengge6</a></sub>
+```
 
 ---
 
+## ❓ 常见问题
+
+**Q: 为什么进入页面后没有显示按钮？** A: 请检查脚本是否已启用，或尝试刷新页面。如果学校更新了评教域名，请在 Issue 中反馈。
+
+**Q: 脚本安全吗？会被后台察觉吗？** A: 脚本完全开源透明，模拟的是原生 DOM 点击事件，且支持随机选项，在技术特征上与人工点击保持一致。
+
+**Q: 评价内容可以自动变化吗？** A: 可以在配置中修改 `comment` 内容，建议定期更换评语以保持反馈质量。
+
+---
+
+## 📄 开源协议
+
+本项目采用 [MIT License](https://www.google.com/search?q=LICENSE) 开源。
+
+<div align="center">
 
 **Made with ❤️ for UJS Students**
 
+Copyright © 2025 [zhengge6](https://github.com/zhengge6)
+
 </div>
+
+```
+
+```
