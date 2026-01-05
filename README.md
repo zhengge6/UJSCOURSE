@@ -6,7 +6,7 @@
 
 **✏️ 江苏大学自动评教助手**
 
-[![Version](https://img.shields.io/badge/version-3.0.0-brightgreen?style=flat-square&logo=github)](https://github.com/zhengge6/UJSCOURSE)
+[![一键安装](https://img.shields.io/badge/version-3.0.0-brightgreen?style=flat-square&logo=github)](https://github.com/zhengge6/UJSCOURSE/releases/tag/auto)
 [![ScriptCat](https://img.shields.io/badge/脚本猫-推荐-ff6b35?style=flat-square&logo=tampermonkey)](https://docs.scriptcat.org/)
 [![Platform](https://img.shields.io/badge/platform-UserScript-blue?style=flat-square&logo=javascript)](https://docs.scriptcat.org/)
 [![License](https://img.shields.io/badge/license-MIT-yellow?style=flat-square)](LICENSE)
