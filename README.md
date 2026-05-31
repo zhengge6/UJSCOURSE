@@ -4,92 +4,94 @@
 
 # UJSCOURSE
 
-**江苏大学评教辅助脚本**
+**Jiangsu University Course Evaluation Helper**
 
-一个面向麦可思评教页面的用户脚本，提供自动填充、自动确认、连续下一门等能力，适合用 ScriptCat 或 Tampermonkey 安装运行。
+A userscript for MyCOS-based course evaluation pages, with auto fill, auto confirm, and continuous next-course processing.
 
 [![Version](https://img.shields.io/badge/version-2.3.0-2f855a?style=flat-square)](./auto.user.js)
 [![Platform](https://img.shields.io/badge/platform-UserScript-1f2937?style=flat-square)](https://docs.scriptcat.org/)
 [![Engine](https://img.shields.io/badge/target-MyCOS-8b5cf6?style=flat-square)](https://www.mycospxk.com/)
 [![License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](./auto.user.js)
 
-[快速开始](#快速开始) · [功能说明](#功能说明) · [配置项](#配置项) · [工作方式](#工作方式) · [注意事项](#注意事项)
+[English](./README.md) · [简体中文](./README-zh.md)
+
+[Quick Start](#quick-start) · [Features](#features) · [Configuration](#configuration) · [How It Works](#how-it-works) · [Notes](#notes)
 
 </div>
 
 ---
 
-## 这是什么
+## What Is This
 
-`UJSCOURSE` 是一个江苏大学评教辅助用户脚本。
+`UJSCOURSE` is a userscript for Jiangsu University course evaluation workflows.
 
-它会在评教页面加载后自动注入操作按钮，帮助你完成：
+It injects action buttons into the evaluation page and helps with:
 
-- 单选题自动勾选
-- 多选题自动勾选
-- 文本评语自动填写
-- 提交确认弹窗自动处理
-- 多门课程连续评教
+- auto-selecting radio options
+- auto-selecting checkbox options
+- auto-filling text comments
+- auto-confirming submission dialogs
+- continuously moving to the next course
 
-这不是后端工具，也不是接口脚本；它依赖页面 DOM 和浏览器行为工作。
+This project works on the page itself through browser DOM interactions. It is not a backend tool or API client.
 
-## 功能说明
+## Features
 
-### 1. 仅填充
+### 1. Fill Only
 
-进入评教页面后，脚本会注入 `仅填充` 按钮。
+When you enter an evaluation page, the script injects a `Fill Only` button.
 
-点击后会：
+Clicking it will:
 
-- 按配置范围选择单选题
-- 勾选页面中的多选题
-- 填写统一评语
+- select radio choices within the configured range
+- select checkbox items on the page
+- fill text areas with the configured comment
 
-这一模式**不会自动提交**，更适合先检查再手动提交。
+This mode does **not** submit automatically, which makes it better for review-first usage.
 
-### 2. 全自动评教循环
+### 2. Full Auto Loop
 
-点击 `全自动评教循环` 后，脚本会按顺序执行：
+Clicking `Full Auto Loop` will run this sequence:
 
-1. 填充当前页面内容
-2. 点击提交
-3. 自动确认弹窗
-4. 搜索并点击包含“下一”字样的按钮
-5. 在下一门课程页面继续重复
+1. fill the current evaluation form
+2. click submit
+3. confirm the dialog automatically
+4. find a button containing "next"
+5. continue on the next course page
 
-循环状态通过 `sessionStorage` 保存，所以页面跳转后可以继续运行。
+Loop state is stored in `sessionStorage`, so the flow can continue after page navigation.
 
-### 3. 停止循环
+### 3. Stop Loop
 
-当自动流程运行中，页面会显示 `停止循环` 按钮，可随时终止当前自动状态。
+While auto mode is running, a `Stop Loop` button is shown so the process can be stopped at any time.
 
-## 快速开始
+## Quick Start
 
-### 安装脚本管理器
+### Install a userscript manager
 
-推荐任选其一：
+Recommended:
 
 - [ScriptCat](https://docs.scriptcat.org/)
 - [Tampermonkey](https://www.tampermonkey.net/)
 
-### 安装脚本
+### Install the script
 
-直接打开并安装：
+Open and install directly:
 
 - [auto.user.js](https://github.com/zhengge6/UJSCOURSE/raw/main/auto.user.js)
 
-如果你的脚本管理器没有自动接管，也可以手动复制 [`auto.user.js`](./auto.user.js) 内容创建新脚本。
+If your userscript manager does not capture it automatically, you can also copy the contents of [auto.user.js](./auto.user.js) into a new script manually.
 
-### 使用
+### Use it
 
-1. 登录学校评教系统
-2. 进入具体评教页面
-3. 等待脚本注入按钮
-4. 选择 `仅填充` 或 `全自动评教循环`
+1. Log in to the school evaluation system
+2. Open a course evaluation page
+3. Wait for the script buttons to appear
+4. Choose `Fill Only` or `Full Auto Loop`
 
-## 配置项
+## Configuration
 
-当前脚本内默认配置如下：
+Current default configuration:
 
 ```javascript
 const config = {
@@ -105,60 +107,52 @@ const config = {
 };
 ```
 
-你通常只需要关心这几个字段：
+Fields you will usually care about:
 
-| 字段 | 作用 |
+| Field | Purpose |
 | --- | --- |
-| `radio` | 控制单选题可选范围，`[0, 1]` 表示在“非常同意”和“同意”之间随机选择 |
-| `checkbox` | 是否自动勾选多选题 |
-| `comment` | 文本题默认评语 |
-| `reviewHref` | 用于判断当前是否处于评教页面 |
+| `radio` | Range of radio choices. `[0, 1]` means random selection between the top two options |
+| `checkbox` | Whether checkbox questions should be selected automatically |
+| `comment` | Default text comment |
+| `reviewHref` | Keyword used to detect evaluation pages |
 
-评分索引含义：
+Score index meaning:
 
-- `0 = 非常同意`
-- `1 = 同意`
-- `2 = 一般`
-- `3 = 不同意`
-- `4 = 非常不同意`
+- `0 = strongly agree`
+- `1 = agree`
+- `2 = neutral`
+- `3 = disagree`
+- `4 = strongly disagree`
 
-## 工作方式
+## How It Works
 
-脚本当前基于前端页面结构工作，核心机制包括：
+The script currently depends on frontend page structure and browser behavior:
 
-- 使用 `MutationObserver` 监听页面变化
-- 重写 `history.pushState` / `replaceState` 监听站内跳转
-- 通过页面结构判断是否已进入评教区域
-- 自动识别确认弹窗并触发确认按钮
-- 自动轮询“下一门”按钮推进流程
+- uses `MutationObserver` to watch page changes
+- hooks `history.pushState` and `replaceState` for in-site navigation
+- checks page structure to detect evaluation areas
+- auto-confirms modal dialogs when auto flow is active
+- polls for a "next" button to continue the loop
 
-这意味着它对目标页面结构有一定依赖，但也因此不需要额外服务端支持。
+This makes it lightweight, but also means it depends on the target page structure staying compatible.
 
-## 文件结构
+## Files
 
-| 文件 | 说明 |
+| File | Description |
 | --- | --- |
-| [auto.user.js](./auto.user.js) | 主脚本文件 |
-| [logo.png](./logo.png) | 项目标识 |
-| [OpenWrt.mtd1.bin](./OpenWrt.mtd1.bin) | 仓库内现存二进制文件，与脚本主功能无直接关系 |
+| [auto.user.js](./auto.user.js) | Main userscript |
+| [logo.png](./logo.png) | Project logo |
+| [OpenWrt.mtd1.bin](./OpenWrt.mtd1.bin) | Existing binary file in the repo, unrelated to the core script behavior |
+| [README-zh.md](./README-zh.md) | Chinese README |
 
-## 注意事项
+## Notes
 
-- 当前脚本主要面向麦可思风格页面
-- 如果学校页面结构改版，选择器可能需要同步更新
-- “下一门”依赖按钮文本模糊匹配，不同站点可能存在兼容差异
-- 当前文本评语为固定内容，不会自动生成多样化文案
-- 仓库目前没有单独的 `LICENSE` 文件，但脚本头部声明为 `MIT`
+- The current logic mainly targets MyCOS-style evaluation pages
+- If the school updates the page structure, selectors may need adjustment
+- The "next course" step relies on fuzzy text matching for buttons
+- Text comments are currently fixed instead of randomly generated
+- The repository does not currently include a standalone `LICENSE` file, although the script header declares `MIT`
 
-## 维护建议
+## Disclaimer
 
-后续值得继续做的方向：
-
-- 增加多条评语模板并随机选择
-- 抽离页面选择器，减少页面改版带来的维护成本
-- 增强“下一门”检测逻辑，避免误点或漏跳转
-- 补充 `LICENSE`、更新日志和发布说明
-
-## 免责声明
-
-本项目用于用户脚本与前端自动化技术学习。请结合实际场景、学校规则和个人判断自行使用。
+This project is intended for userscript and frontend automation learning. Please use it according to your own judgment and local rules.
