@@ -8,6 +8,11 @@
 // @icon         https://ts3.tc.mm.bing.net/th/id/ODF.OBdTb_bnewqEd7HjDCi4mg?w=32&h=32&qlt=90&pcl=fffffa&o=6&pid=1.2
 // @match        *://*.edu.cn/*
 // @match        *://*.mycospxk.com/*
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_addStyle
+// @grant        GM_xmlhttpRequest
+// @connect      *
 // @require      https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js
 // @run-at       document-start
 // ==/UserScript==
@@ -15,14 +20,32 @@
 (function ($) {
   'use strict';
 
+  // NOTE: This script includes an optional "AI helper" panel that generates a suggestion plan
+  // (structured JSON + UI highlights). It does NOT auto-submit and does NOT auto-click options.
+
   // --- 核心配置 (保持原版偏好) ---
   const config = {
     // 自动提交开关（脚本内部管理，无需手动改）
     autoSubmit: false,
     // 评价内容: 0=非常同意, 1=同意
     radio: [0, 1],
+    // 单选题语义匹配词表：0=最正向，4=最负向
+    radioKeywords: [
+      ["非常同意", "完全同意", "非常满意", "完全满意", "特别满意", "非常好", "优秀"],
+      ["同意", "满意", "较满意", "良好", "好"],
+      ["一般", "中立", "普通", "中等", "还行"],
+      ["不同意", "不满意", "较差", "不好"],
+      ["非常不同意", "完全不同意", "非常不满意", "完全不满意", "很差", "差"]
+    ],
     checkbox: true,
     comment: "我对本课程非常满意，老师教学认真负责。",
+    ai: {
+      enabled: true,
+      endpoint: "https://api.openai.com/v1/chat/completions",
+      apiKey: "",
+      model: "gpt-4o-mini",
+      temperature: 0.2
+    },
     
     // DOM 元素配置 (原版)
     reviewHref: "answer",
@@ -30,6 +53,299 @@
     reviewRadioField: ["非常", "", "一般", "不", "非常不"],
     reviewSubmitElement: ".ant-btn.ant-btn-primary:not(.--lcandy2-mycos-auto-review)",
     reviewModalElement: "div.ant-modal-body"
+  };
+
+  const gmGet = (key, fallback) => {
+    try {
+      if (typeof GM_getValue === "function") return GM_getValue(key, fallback);
+    } catch (e) {}
+    return fallback;
+  };
+
+  const gmSet = (key, value) => {
+    try {
+      if (typeof GM_setValue === "function") return GM_setValue(key, value);
+    } catch (e) {}
+  };
+
+  const normalizeText = (text) => {
+    return (text || "").replace(/\s+/g, "").replace(/[：:，,。.!！?？]/g, "").trim();
+  };
+
+  const safeJsonParse = (text) => {
+    try { return JSON.parse(text); } catch (e) { return null; }
+  };
+
+  const getAiCfg = () => {
+    const raw = gmGet("ujs_ai_cfg", "");
+    if (!raw) return { ...config.ai };
+    const parsed = safeJsonParse(raw);
+    if (!parsed || typeof parsed !== "object") return { ...config.ai };
+    return { ...config.ai, ...parsed };
+  };
+
+  const setAiCfg = (aiCfg) => {
+    gmSet("ujs_ai_cfg", JSON.stringify(aiCfg || {}));
+  };
+
+  const callAi = (aiCfg, prompt, onOk, onErr) => {
+    const payload = {
+      model: aiCfg.model,
+      temperature: aiCfg.temperature,
+      messages: [
+        { role: "system", content: "You are a helper that returns STRICT JSON only." },
+        { role: "user", content: prompt }
+      ]
+    };
+
+    const headers = {
+      "Content-Type": "application/json",
+      "Authorization": "Bearer " + (aiCfg.apiKey || "")
+    };
+
+    const url = (aiCfg.endpoint || "").replace(/\/+$/, "");
+    if (!url) return onErr("AI endpoint is empty");
+    if (!aiCfg.apiKey) return onErr("AI apiKey is empty");
+
+    if (typeof GM_xmlhttpRequest === "function") {
+      GM_xmlhttpRequest({
+        method: "POST",
+        url,
+        headers,
+        data: JSON.stringify(payload),
+        timeout: 45000,
+        onload: (res) => {
+          if (!res || res.status < 200 || res.status >= 300) return onErr("HTTP " + (res ? res.status : "?"));
+          const data = safeJsonParse(res.responseText);
+          if (!data) return onErr("Invalid JSON response");
+          const content = data?.choices?.[0]?.message?.content;
+          if (!content) return onErr("Empty AI content");
+          onOk(content);
+        },
+        onerror: () => onErr("Network error"),
+        ontimeout: () => onErr("Timeout")
+      });
+      return;
+    }
+
+    fetch(url, { method: "POST", headers, body: JSON.stringify(payload) })
+      .then((r) => r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)))
+      .then((data) => {
+        const content = data?.choices?.[0]?.message?.content;
+        if (!content) throw new Error("Empty AI content");
+        onOk(content);
+      })
+      .catch((e) => onErr(String(e && e.message ? e.message : e)));
+  };
+
+  const extractSurvey = () => {
+    const questions = [];
+
+    $(".ant-radio-group").each((idx, groupEl) => {
+      const $group = $(groupEl);
+      const $options = $group.find(".ant-radio-wrapper");
+      if (!$options.length) return;
+
+      const $item = $group.closest(".ant-form-item");
+      const labelText =
+        $item.find(".ant-form-item-label").text().trim() ||
+        $item.find("label").first().text().trim() ||
+        "";
+
+      const options = $options.map((_, opt) => $(opt).text().trim()).get();
+      questions.push({
+        type: "radio",
+        label: labelText,
+        options
+      });
+    });
+
+    $(".ant-checkbox-group").each((idx, groupEl) => {
+      const $group = $(groupEl);
+      const $item = $group.closest(".ant-form-item");
+      const labelText =
+        $item.find(".ant-form-item-label").text().trim() ||
+        $item.find("label").first().text().trim() ||
+        "";
+
+      const options = $group.find(".ant-checkbox-wrapper").map((_, opt) => $(opt).text().trim()).get();
+      if (!options.length) return;
+      questions.push({
+        type: "checkbox",
+        label: labelText,
+        options
+      });
+    });
+
+    const textAreas = $(".ant-input").map((_, el) => el).get().filter((el) => (el && el.tagName || "").toLowerCase() === "textarea");
+    if (textAreas.length) {
+      questions.push({
+        type: "text",
+        label: "Comment",
+        options: []
+      });
+    }
+
+    return { url: location.href, questions };
+  };
+
+  const buildAiPrompt = (survey, prefs) => {
+    const minScore = Math.min.apply(null, prefs.radio);
+    const maxScore = Math.max.apply(null, prefs.radio);
+    return [
+      "Return STRICT JSON only, no markdown, no explanation.",
+      "",
+      "Task: produce a suggestion plan for a course-evaluation form.",
+      "Constraints:",
+      "- Do NOT include any auto-submit instructions.",
+      "- For radio questions, choose ONE option that matches the desired sentiment score range.",
+      "- Desired score range: " + minScore + " to " + maxScore + " (0=most positive, 4=most negative).",
+      "- For checkbox questions, you may choose all options (or leave empty if unsure).",
+      '- Also return a "comment" string suggestion (can reuse the provided default).',
+      "",
+      "Output schema:",
+      '{ "radio": [ { "q": "<label>", "pick": "<exact option text>" } ], "checkbox": [ { "q": "<label>", "pick": ["<exact option text>", "..."] } ], "comment": "<text>" }',
+      "",
+      "Form JSON:",
+      JSON.stringify(survey),
+      "",
+      "Default comment:",
+      prefs.comment
+    ].join("\n");
+  };
+
+  const applyAiHighlight = (plan) => {
+    $(".ujs-ai-hl").removeClass("ujs-ai-hl");
+
+    const normalize = (s) => normalizeText(s);
+
+    if (plan && Array.isArray(plan.radio)) {
+      plan.radio.forEach((entry) => {
+        const pick = normalize(entry && entry.pick);
+        if (!pick) return;
+        $(".ant-radio-wrapper").each((_, el) => {
+          if (normalize($(el).text()) === pick) $(el).addClass("ujs-ai-hl");
+        });
+      });
+    }
+
+    if (plan && Array.isArray(plan.checkbox)) {
+      plan.checkbox.forEach((entry) => {
+        const picks = (entry && entry.pick) || [];
+        const set = new Set(picks.map(normalize).filter(Boolean));
+        if (!set.size) return;
+        $(".ant-checkbox-wrapper").each((_, el) => {
+          if (set.has(normalize($(el).text()))) $(el).addClass("ujs-ai-hl");
+        });
+      });
+    }
+  };
+
+  const ensureAiUi = () => {
+    if (!config.ai.enabled) return;
+    if (document.getElementById("ujs-ai-panel")) return;
+
+    if (typeof GM_addStyle === "function") {
+      GM_addStyle([
+        "#ujs-ai-panel{position:fixed;right:20px;bottom:20px;z-index:2147483647;width:360px;max-height:70vh;display:none;flex-direction:column;overflow:hidden;",
+        "background:rgba(18,18,24,.92);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.08);border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.55);",
+        "font-family:system-ui,Segoe UI,Arial;font-size:12px;color:rgba(255,255,255,.85)}",
+        "#ujs-ai-panel.open{display:flex}",
+        "#ujs-ai-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 12px;border-bottom:1px solid rgba(255,255,255,.06)}",
+        "#ujs-ai-hdr b{color:#fff;font-size:13px}",
+        "#ujs-ai-hdr button{border:none;background:rgba(255,255,255,.08);color:rgba(255,255,255,.8);border-radius:8px;padding:6px 8px;cursor:pointer}",
+        "#ujs-ai-body{padding:10px 12px;overflow:auto;display:flex;flex-direction:column;gap:8px}",
+        "#ujs-ai-body label{display:block;color:rgba(255,255,255,.7);margin-bottom:4px}",
+        "#ujs-ai-body input{width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#fff;border-radius:10px;padding:8px}",
+        "#ujs-ai-body textarea{width:100%;box-sizing:border-box;min-height:86px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#fff;border-radius:10px;padding:8px;resize:vertical}",
+        "#ujs-ai-actions{display:flex;gap:8px;padding:10px 12px;border-top:1px solid rgba(255,255,255,.06)}",
+        "#ujs-ai-actions button{flex:1;border:none;border-radius:10px;padding:9px 10px;cursor:pointer;font-weight:700}",
+        "#ujs-ai-run{background:#10b981;color:#052e2a}",
+        "#ujs-ai-copy{background:rgba(255,255,255,.12);color:#fff}",
+        "#ujs-ai-hl{background:rgba(59,130,246,.12);color:#93c5fd}",
+        "#ujs-ai-log{white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;color:rgba(255,255,255,.75);padding:0 12px 12px}",
+        ".ujs-ai-hl{outline:2px solid rgba(59,130,246,.85);outline-offset:2px;border-radius:6px}"
+      ].join(""));
+    }
+
+    const panel = document.createElement("div");
+    panel.id = "ujs-ai-panel";
+    panel.innerHTML = [
+      '<div id="ujs-ai-hdr"><b>AI Helper (suggest only)</b><button id="ujs-ai-close">X</button></div>',
+      '<div id="ujs-ai-body">',
+      '<div><label>Endpoint</label><input id="ujs-ai-endpoint" placeholder="https://.../v1/chat/completions"></div>',
+      '<div><label>API Key</label><input id="ujs-ai-key" placeholder="sk-..." type="password"></div>',
+      '<div><label>Model</label><input id="ujs-ai-model" placeholder="gpt-4o-mini"></div>',
+      '<div><label>Temperature</label><input id="ujs-ai-temp" placeholder="0.2"></div>',
+      '<div><label>Result (JSON plan)</label><textarea id="ujs-ai-result" placeholder="{...}"></textarea></div>',
+      "</div>",
+      '<div id="ujs-ai-actions">',
+      '<button id="ujs-ai-run">Generate</button>',
+      '<button id="ujs-ai-copy">Copy</button>',
+      '<button id="ujs-ai-hl">Highlight</button>',
+      "</div>",
+      '<div id="ujs-ai-log"></div>'
+    ].join("");
+    document.body.appendChild(panel);
+
+    const aiCfg = getAiCfg();
+    panel.querySelector("#ujs-ai-endpoint").value = aiCfg.endpoint || "";
+    panel.querySelector("#ujs-ai-key").value = aiCfg.apiKey || "";
+    panel.querySelector("#ujs-ai-model").value = aiCfg.model || "";
+    panel.querySelector("#ujs-ai-temp").value = String(aiCfg.temperature ?? 0.2);
+
+    const log = (msg) => {
+      const el = panel.querySelector("#ujs-ai-log");
+      el.textContent = (el.textContent ? el.textContent + "\n" : "") + msg;
+    };
+
+    panel.querySelector("#ujs-ai-close").onclick = () => panel.classList.remove("open");
+
+    const saveCfgFromUi = () => {
+      const next = {
+        endpoint: panel.querySelector("#ujs-ai-endpoint").value.trim(),
+        apiKey: panel.querySelector("#ujs-ai-key").value.trim(),
+        model: panel.querySelector("#ujs-ai-model").value.trim(),
+        temperature: Number(panel.querySelector("#ujs-ai-temp").value.trim() || "0.2")
+      };
+      setAiCfg(next);
+      return next;
+    };
+
+    panel.querySelector("#ujs-ai-run").onclick = () => {
+      const nextCfg = saveCfgFromUi();
+      const survey = extractSurvey();
+      if (!survey.questions.length) return log("[ERR] No questions found on this page");
+
+      const prompt = buildAiPrompt(survey, { radio: config.radio, comment: config.comment });
+      log("[AI] generating...");
+
+      callAi(nextCfg, prompt, (content) => {
+        const trimmed = String(content).trim();
+        panel.querySelector("#ujs-ai-result").value = trimmed;
+        log("[OK] plan received");
+      }, (err) => {
+        log("[ERR] " + err);
+      });
+    };
+
+    panel.querySelector("#ujs-ai-copy").onclick = async () => {
+      const text = panel.querySelector("#ujs-ai-result").value || "";
+      try {
+        await navigator.clipboard.writeText(text);
+        log("[OK] copied");
+      } catch (e) {
+        log("[ERR] copy failed");
+      }
+    };
+
+    panel.querySelector("#ujs-ai-hl").onclick = () => {
+      const raw = panel.querySelector("#ujs-ai-result").value || "";
+      const plan = safeJsonParse(raw);
+      if (!plan) return log("[ERR] invalid JSON plan");
+      applyAiHighlight(plan);
+      log("[OK] highlighted (no auto-click)");
+    };
   };
 
   // --- 原版填充逻辑 (完全保留，确保不漏选) ---
@@ -44,48 +360,82 @@
     return Math.floor(Math.random() * (max + 1 - min)) + min;
   };
 
-  const seleRadio = (selection, fixedTexts = ["非常", "", "一般", "不", "非常不"]) => {
-    let positions = new Array(5).fill(-1);
-    let result = false;
-    let radioSelection = selection;
-    $(".ant-radio-group").each((index, element) => {
-      let options = $(element).find(".ant-radio-wrapper");
-      options.each((index2, element2) => {
-        let text = $(element2).text().trim();
-        if (text.includes(fixedTexts[0]) && !text.includes(fixedTexts[4])) positions[0] = index2;
-        if (text.includes(fixedTexts[4])) positions[4] = index2;
-        if (text.includes(fixedTexts[3]) && !text.includes(fixedTexts[4])) positions[3] = index2;
-        if (text.includes(fixedTexts[2])) positions[2] = index2;
-        else if (index2 > 0 && index2 < 4) {
-          let prevText = options.eq(index2 - 1).text().trim();
-          let nextText = options.eq(index2 + 1).text().trim();
-          let character1Prev = prevText.replace(fixedTexts[0], "").replace(fixedTexts[3], "");
-          let character1Next = nextText.replace(fixedTexts[0], "").replace(fixedTexts[3], "");
-          let character1Current = text.replace(fixedTexts[0], "").replace(fixedTexts[3], "");
-          if (character1Current !== character1Prev && character1Current !== character1Next) positions[2] = index2;
-        }
-        if (fixedTexts[1] != "" && text.startsWith(fixedTexts[1])) positions[1] = index2;
-        if (!text.includes(fixedTexts[0]) && !text.includes(fixedTexts[3]) && positions[2] !== index2 && positions[1] == -1) positions[1] = index2;
-      });
-      radioSelection.sort();
-      let randomIndex = getRnd(radioSelection[0], radioSelection[radioSelection.length - 1]);
-      if (positions[randomIndex] !== -1) {
-        options.eq(positions[randomIndex]).trigger("click");
-        result = true;
-        positions = Array(5).fill(-1);
+  const getRadioScoreByText = (text, radioKeywords) => {
+    const normalized = normalizeText(text);
+    if (!normalized) return -1;
+
+    for (let score = radioKeywords.length - 1; score >= 0; score--) {
+      if (radioKeywords[score].some((keyword) => normalized.includes(normalizeText(keyword)))) {
+        return score;
+      }
+    }
+
+    return -1;
+  };
+
+  const mapRadioOptions = ($options, radioKeywords) => {
+    const positions = new Array(5).fill(-1);
+    const unmatched = [];
+
+    $options.each((optionIndex, optionElement) => {
+      const text = $(optionElement).text().trim();
+      const score = getRadioScoreByText(text, radioKeywords);
+      if (score !== -1 && positions[score] === -1) {
+        positions[score] = optionIndex;
+      } else if (score === -1) {
+        unmatched.push(optionIndex);
       }
     });
+
+    const matchedCount = positions.filter((position) => position !== -1).length;
+    if (matchedCount >= 3) return positions;
+
+    if ($options.length === 5) {
+      return [0, 1, 2, 3, 4];
+    }
+
+    unmatched.forEach((optionIndex) => {
+      const firstEmpty = positions.findIndex((position) => position === -1);
+      if (firstEmpty !== -1) {
+        positions[firstEmpty] = optionIndex;
+      }
+    });
+
+    return positions;
+  };
+
+  const seleRadio = (selection, radioKeywords = config.radioKeywords) => {
+    let result = false;
+    const radioSelection = [...selection].sort((a, b) => a - b);
+
+    $(".ant-radio-group").each((index, element) => {
+      const $options = $(element).find(".ant-radio-wrapper");
+      if (!$options.length) return;
+
+      const positions = mapRadioOptions($options, radioKeywords);
+      const availableScores = radioSelection.filter((score) => positions[score] !== -1);
+      if (!availableScores.length) {
+        console.warn("[自动评教] 单选题未匹配到可用选项：", $options.map((_, option) => $(option).text().trim()).get());
+        return;
+      }
+
+      const chosenScore = availableScores[getRnd(0, availableScores.length - 1)];
+      $options.eq(positions[chosenScore]).trigger("click");
+      result = true;
+    });
+
     return result;
   };
 
   const seleCheckbox = () => {
     let checkbox_list = $(".ant-checkbox-group");
     for (let i = 0; i < checkbox_list.length; i++) {
-      let lists = checkbox_list[i].children;
-      for (let j = 0; j < lists.length; j++) {
-        let btn = $(checkbox_list[i]).find(".ant-checkbox-input")[j];
-        $(btn).trigger("click");
-      }
+      const inputs = $(checkbox_list[i]).find(".ant-checkbox-input");
+      inputs.each((_, input) => {
+        if (!input.checked) {
+          $(input).trigger("click");
+        }
+      });
     }
     return true;
   };
@@ -201,8 +551,15 @@
         // 同时也保留一个单次填充按钮（原版功能）
         const $onceBtn = $(`<button type="button" class="ant-btn --lcandy2-mycos-auto-review" style="${btnStyle}">仅填充</button>`);
         $onceBtn.on("click", () => listener(false));
+
+        const $aiBtn = $(`<button type="button" class="ant-btn --lcandy2-mycos-auto-review" style="${btnStyle}">AI建议</button>`);
+        $aiBtn.on("click", () => {
+          ensureAiUi();
+          const panel = document.getElementById("ujs-ai-panel");
+          if (panel) panel.classList.add("open");
+        });
         
-        $parentElement.append($onceBtn).append($startBtn);
+        $parentElement.append($onceBtn).append($startBtn).append($aiBtn);
     }
   };
 
