@@ -241,6 +241,48 @@
     }
   };
 
+  const filterQuestionsForDebug = (patternText) => {
+    $(".ujs-ai-hidden").removeClass("ujs-ai-hidden");
+    const raw = (patternText || "").trim();
+    if (!raw) return 0;
+
+    let re = null;
+    try {
+      // Support /re/flags style, otherwise treat as case-insensitive substring regex.
+      const m = raw.match(/^\/(.+)\/([gimsuy]*)$/);
+      if (m) re = new RegExp(m[1], m[2]);
+      else re = new RegExp(raw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+    } catch (e) {
+      // If regex fails, fall back to substring matching.
+      re = null;
+    }
+
+    const matches = (text) => {
+      const t = String(text || "");
+      if (re) return re.test(t);
+      return t.toLowerCase().includes(raw.toLowerCase());
+    };
+
+    let shown = 0;
+    $(".ant-form-item").each((_, itemEl) => {
+      const $item = $(itemEl);
+      const hasQuestion = $item.find(".ant-radio-group,.ant-checkbox-group,textarea.ant-input,.ant-input").length > 0;
+      if (!hasQuestion) return;
+
+      const labelText = $item.find(".ant-form-item-label").text().trim() || $item.find("label").first().text().trim();
+      const optionText = $item.find(".ant-radio-wrapper,.ant-checkbox-wrapper").map((_, el) => $(el).text().trim()).get().join(" ");
+      const hay = (labelText ? labelText + " " : "") + optionText;
+
+      if (matches(hay)) {
+        shown += 1;
+      } else {
+        $item.addClass("ujs-ai-hidden");
+      }
+    });
+
+    return shown;
+  };
+
   const ensureAiUi = () => {
     if (!config.ai.enabled) return;
     if (document.getElementById("ujs-ai-panel")) return;
@@ -264,7 +306,8 @@
         "#ujs-ai-copy{background:rgba(255,255,255,.12);color:#fff}",
         "#ujs-ai-hl{background:rgba(59,130,246,.12);color:#93c5fd}",
         "#ujs-ai-log{white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;color:rgba(255,255,255,.75);padding:0 12px 12px}",
-        ".ujs-ai-hl{outline:2px solid rgba(59,130,246,.85);outline-offset:2px;border-radius:6px}"
+        ".ujs-ai-hl{outline:2px solid rgba(59,130,246,.85);outline-offset:2px;border-radius:6px}",
+        ".ujs-ai-hidden{display:none !important}"
       ].join(""));
     }
 
@@ -277,12 +320,18 @@
       '<div><label>API Key</label><input id="ujs-ai-key" placeholder="sk-..." type="password"></div>',
       '<div><label>Model</label><input id="ujs-ai-model" placeholder="gpt-4o-mini"></div>',
       '<div><label>Temperature</label><input id="ujs-ai-temp" placeholder="0.2"></div>',
+      '<div><label>Debug Filter (keyword or /re/flags)</label><input id="ujs-ai-filter" placeholder="e.g. 满意 or /满意|一般/i"></div>',
       '<div><label>Result (JSON plan)</label><textarea id="ujs-ai-result" placeholder="{...}"></textarea></div>',
       "</div>",
       '<div id="ujs-ai-actions">',
       '<button id="ujs-ai-run">Generate</button>',
       '<button id="ujs-ai-copy">Copy</button>',
       '<button id="ujs-ai-hl">Highlight</button>',
+      "</div>",
+      '<div id="ujs-ai-actions">',
+      '<button id="ujs-ai-apply-filter">Filter</button>',
+      '<button id="ujs-ai-clear-filter">Clear</button>',
+      '<button id="ujs-ai-dump">Dump</button>',
       "</div>",
       '<div id="ujs-ai-log"></div>'
     ].join("");
@@ -345,6 +394,30 @@
       if (!plan) return log("[ERR] invalid JSON plan");
       applyAiHighlight(plan);
       log("[OK] highlighted (no auto-click)");
+    };
+
+    panel.querySelector("#ujs-ai-apply-filter").onclick = () => {
+      const patternText = panel.querySelector("#ujs-ai-filter").value || "";
+      const shown = filterQuestionsForDebug(patternText);
+      log("[OK] filter applied, shown: " + shown);
+    };
+
+    panel.querySelector("#ujs-ai-clear-filter").onclick = () => {
+      panel.querySelector("#ujs-ai-filter").value = "";
+      filterQuestionsForDebug("");
+      log("[OK] filter cleared");
+    };
+
+    panel.querySelector("#ujs-ai-dump").onclick = async () => {
+      const survey = extractSurvey();
+      const text = JSON.stringify(survey, null, 2);
+      panel.querySelector("#ujs-ai-result").value = text;
+      try {
+        await navigator.clipboard.writeText(text);
+        log("[OK] dumped + copied form JSON");
+      } catch (e) {
+        log("[OK] dumped form JSON (copy failed)");
+      }
     };
   };
 
