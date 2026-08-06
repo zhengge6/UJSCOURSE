@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         自动评教：江苏大学
 // @namespace
-// @version      2.4.0
+// @version      2.4.1
 // @author       Zheng
 // @description  自动评教助手：单选/多选/文本自动填充、全自动循环评教、随机评语、进度统计、AI 建议（仅建议不提交）。
 // @license      MIT
@@ -645,7 +645,7 @@
 
         setTimeout(() => {
           $nextBtn.trigger("click");
-        }, getRnd(2500, 3800)); // 2.5~3.8秒延迟，模拟人工，避免过快报错
+        }, 3000); // 3秒延迟，模拟人工，避免过快报错
       } else if (attempts > 30) {
         clearInterval(timer);
         // 如果找不到下一门，且当前开启了全自动，说明可能评完了
