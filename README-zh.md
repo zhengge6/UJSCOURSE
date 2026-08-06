@@ -8,7 +8,7 @@
 
 一个面向麦可思评教页面的用户脚本，提供自动填充、自动确认、连续下一门等能力。
 
-[![Version](https://img.shields.io/badge/version-2.3.0-2f855a?style=flat-square)](./auto.user.js)
+[![Version](https://img.shields.io/badge/version-2.4.0-2f855a?style=flat-square)](./auto.user.js)
 [![Platform](https://img.shields.io/badge/platform-UserScript-1f2937?style=flat-square)](https://docs.scriptcat.org/)
 [![Engine](https://img.shields.io/badge/target-MyCOS-8b5cf6?style=flat-square)](https://www.mycospxk.com/)
 [![License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](./LICENSE)
