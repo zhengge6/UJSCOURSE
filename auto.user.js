@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name         自动评教：江苏大学
 // @namespace
-// @version      2.4.1
+// @version      2.5.0
 // @author       Zheng
-// @description  自动评教助手：单选/多选/文本自动填充、全自动循环评教、随机评语、进度统计、AI 建议（仅建议不提交）。
+// @description  自动评教助手：单选/多选/文本自动填充、全自动循环评教、AI 建议全自动评教（生成建议->填充->提交->下一门）、随机评语、进度统计。
 // @license      MIT
 // @icon         https://ts3.tc.mm.bing.net/th/id/ODF.OBdTb_bnewqEd7HjDCi4mg?w=32&h=32&qlt=90&pcl=fffffa&o=6&pid=1.2
 // @match        *://*.edu.cn/*
 // @match        *://*.mycospxk.com/*
+// @match        https://github.com/*
 // @grant        GM_getValue
 // @grant        GM_setValue
 // @grant        GM_addStyle
@@ -301,6 +302,47 @@
     return applied;
   };
 
+  // 一键全自动（AI 版）：生成建议 -> 填充 -> 提交 -> 确认 -> 下一门，全程无人值守
+  // 状态标记：sessionStorage "UJS_AI_AUTO" = 'true'，独立于规则版 UJS_Auto_Loop
+  const aiAutoLoop = () => {
+    const nextCfg = getAiCfg();
+    const survey = extractSurvey();
+    if (!survey.questions.length) {
+      sessionStorage.removeItem("UJS_AI_AUTO");
+      console.warn("[自动评教] AI 全自动：当前页面未检测到问卷题目");
+      return;
+    }
+
+    const prompt = buildAiPrompt(survey, { radio: config.radio, comment: config.comment });
+    const logMsg = (m) => {
+      const panel = document.getElementById("ujs-ai-panel");
+      const logEl = panel && panel.querySelector("#ujs-ai-log");
+      if (logEl) logEl.textContent = (logEl.textContent ? logEl.textContent + "\n" : "") + m;
+    };
+
+    logMsg("[AI] 全自动：生成建议中...");
+    callAi(nextCfg, prompt, (content) => {
+      const trimmed = String(content).trim();
+      const plan = safeJsonParse(trimmed);
+      if (!plan) {
+        logMsg("[ERR] 全自动：建议不是合法 JSON，跳过");
+        return;
+      }
+      // 填充建议（不提交）
+      applyAiPlan(plan);
+      applyAiHighlight(plan);
+      logMsg("[OK] 已填充 " + survey.questions.length + " 题，提交中...");
+
+      // 提交 + 计数 + 检测下一门
+      const $submitButton = $(config.reviewSubmitElement);
+      if ($submitButton.length) incDoneCount();
+      $(config.reviewSubmitElement).trigger("click");
+      checkAndClickNext();
+    }, (err) => {
+      logMsg("[ERR] 全自动：" + err);
+    });
+  };
+
   const filterQuestionsForDebug = (patternText) => {
     $(".ujs-ai-hidden").removeClass("ujs-ai-hidden");
     const raw = (patternText || "").trim();
@@ -364,6 +406,7 @@
         "#ujs-ai-actions button{flex:1;border:none;border-radius:10px;padding:9px 10px;cursor:pointer;font-weight:700}",
         "#ujs-ai-run{background:#10b981;color:#052e2a}",
         "#ujs-ai-apply{background:#3b82f6;color:#fff}",
+        "#ujs-ai-auto{background:#f59e0b;color:#451a03}",
         "#ujs-ai-copy{background:rgba(255,255,255,.12);color:#fff}",
         "#ujs-ai-hl{background:rgba(255,255,255,.12);color:#fff}",
         "#ujs-ai-log{white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;color:rgba(255,255,255,.75);padding:0 12px 12px}",
@@ -387,6 +430,7 @@
       '<div id="ujs-ai-actions">',
       '<button id="ujs-ai-run">生成建议</button>',
       '<button id="ujs-ai-apply">应用建议</button>',
+      '<button id="ujs-ai-auto">全自动</button>',
       '<button id="ujs-ai-copy">复制</button>',
       "</div>",
       '<div id="ujs-ai-actions">',
@@ -447,6 +491,15 @@
       const applied = applyAiPlan(plan);
       applyAiHighlight(plan);
       log("[OK] 已应用 " + applied + " 处（仅填充，未提交）");
+    };
+
+    panel.querySelector("#ujs-ai-auto").onclick = () => {
+      const confirmed = confirm("确认开始【AI 全自动评教】？\n\n脚本将：AI 生成建议 -> 填充 -> 提交 -> 确认弹窗 -> 跳转下一门 -> 重复。\n\n请先确认已填写 API 密钥。");
+      if (!confirmed) return;
+      saveCfgFromUi();
+      sessionStorage.setItem("UJS_AI_AUTO", "true");
+      aiAutoLoop();
+      log("[OK] AI 全自动已启动");
     };
 
     panel.querySelector("#ujs-ai-copy").onclick = async () => {
@@ -639,21 +692,17 @@
 
       if ($nextBtn.length && !modalOpen) {
         clearInterval(timer);
-        console.log("[自动评教] 发现目标，3秒后跳转...");
-        const $markBtn = $("button.--lcandy2-mycos-auto-review");
-        if ($markBtn.length) $markBtn.text("即将跳转下一门...");
-
-        setTimeout(() => {
-          $nextBtn.trigger("click");
-        }, 3000); // 3秒延迟，模拟人工，避免过快报错
+        console.log("[自动评教] 发现目标，立即跳转...");
+        $nextBtn.trigger("click");
       } else if (attempts > 30) {
         clearInterval(timer);
         // 如果找不到下一门，且当前开启了全自动，说明可能评完了
-        if (sessionStorage.getItem('UJS_Auto_Loop') === 'true') {
+        if (sessionStorage.getItem('UJS_Auto_Loop') === 'true' || sessionStorage.getItem('UJS_AI_AUTO') === 'true') {
            const done = getDoneCount();
            console.log("[自动评教] 未找到下一门，流程可能结束。");
            alert("自动评教流程结束，共完成 " + done + " 门课程。");
            sessionStorage.removeItem('UJS_Auto_Loop');
+           sessionStorage.removeItem('UJS_AI_AUTO');
         }
       }
     }, 1000);
@@ -668,13 +717,11 @@
         incDoneCount();
         $submitButton.text("自动提交中...");
       }
-      setTimeout(() => {
-        // 点击提交
-        $(config.reviewSubmitElement).trigger("click");
+      // 点击提交
+      $(config.reviewSubmitElement).trigger("click");
 
-        // 提交后，启动“下一门”检测
-        checkAndClickNext();
-      }, 500);
+      // 提交后，启动"下一门"检测
+      checkAndClickNext();
     } else {
       if ($submitButton.length) $submitButton.text("填充完成，请手动提交");
     }
@@ -693,6 +740,7 @@
     const $stopBtn = $(`<button type="button" class="ant-btn ant-btn-danger --lcandy2-mycos-auto-review" style="${btnStyle}">停止循环</button>`);
     $stopBtn.on("click", () => {
         sessionStorage.removeItem('UJS_Auto_Loop');
+        sessionStorage.removeItem('UJS_AI_AUTO');
         alert("全自动循环已停止");
         location.reload();
     });
@@ -708,8 +756,8 @@
         }
     });
 
-    // 如果正在自动运行中，显示运行状态与进度
-    if (sessionStorage.getItem('UJS_Auto_Loop') === 'true') {
+    // 如果正在自动运行中（规则版或 AI 版），显示运行状态与进度
+    if (sessionStorage.getItem('UJS_Auto_Loop') === 'true' || sessionStorage.getItem('UJS_AI_AUTO') === 'true') {
         const done = getDoneCount();
         $startBtn.text("♻️ 自动循环运行中 · 已完成 " + done + " 门").prop("disabled", true);
         $parentElement.append($startBtn).append($stopBtn);
@@ -717,7 +765,12 @@
         // 自动触发逻辑 (延迟1.5秒等待页面稳定)
         console.log("[自动评教] 检测到自动循环标记，即将执行...");
         setTimeout(() => {
-            listener(true);
+            if (sessionStorage.getItem('UJS_AI_AUTO') === 'true') {
+                ensureAiUi();
+                aiAutoLoop();
+            } else {
+                listener(true);
+            }
         }, 1500);
     } else {
         // 未运行时，显示开始按钮
@@ -799,9 +852,9 @@
           const $modalBody = $(config.reviewModalElement);
           const $button = $modalBody.find("button.ant-btn-primary");
           if ($modalBody.length && $button.length) {
-            // 如果开启了自动循环，或者是自动提交模式，则处理弹窗
+            // 如果开启了自动循环（规则版或 AI 版），或者是自动提交模式，则处理弹窗
             // 为了安全，我们只在点击了自动按钮后才自动确认弹窗
-            if (sessionStorage.getItem('UJS_Auto_Loop') === 'true' || config.autoSubmit) {
+            if (sessionStorage.getItem('UJS_Auto_Loop') === 'true' || sessionStorage.getItem('UJS_AI_AUTO') === 'true' || config.autoSubmit) {
                  func2($button);
             }
           }
