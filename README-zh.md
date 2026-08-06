@@ -11,7 +11,7 @@
 [![Version](https://img.shields.io/badge/version-2.3.0-2f855a?style=flat-square)](./auto.user.js)
 [![Platform](https://img.shields.io/badge/platform-UserScript-1f2937?style=flat-square)](https://docs.scriptcat.org/)
 [![Engine](https://img.shields.io/badge/target-MyCOS-8b5cf6?style=flat-square)](https://www.mycospxk.com/)
-[![License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](./auto.user.js)
+[![License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](./LICENSE)
 
 [English](./README.md) · [简体中文](./README-zh.md)
 
@@ -56,7 +56,7 @@
 1. 填充当前页面内容
 2. 点击提交
 3. 自动确认弹窗
-4. 搜索并点击包含“下一”字样的按钮
+4. 搜索并点击包含"下一"字样的按钮
 5. 在下一门课程页面继续重复
 
 循环状态通过 `sessionStorage` 保存，所以页面跳转后可以继续运行。
@@ -111,7 +111,7 @@ const config = {
 
 | 字段 | 作用 |
 | --- | --- |
-| `radio` | 控制单选题可选范围，`[0, 1]` 表示在“非常同意”和“同意”之间随机选择 |
+| `radio` | 控制单选题可选范围，`[0, 1]` 表示在"非常同意"和"同意"之间随机选择 |
 | `checkbox` | 是否自动勾选多选题 |
 | `comment` | 文本题默认评语 |
 | `reviewHref` | 用于判断当前是否处于评教页面 |
@@ -132,7 +132,7 @@ const config = {
 - 重写 `history.pushState` / `replaceState` 监听站内跳转
 - 通过页面结构判断是否已进入评教区域
 - 在自动流程开启时自动确认弹窗
-- 轮询“下一门”按钮推进流程
+- 轮询"下一门"按钮推进流程
 
 这让脚本足够轻量，但也意味着它依赖目标页面结构保持兼容。
 
@@ -142,16 +142,16 @@ const config = {
 | --- | --- |
 | [auto.user.js](./auto.user.js) | 主脚本文件 |
 | [logo.png](./logo.png) | 项目标识 |
-| [OpenWrt.mtd1.bin](./OpenWrt.mtd1.bin) | 仓库内现存二进制文件，与脚本主功能无直接关系 |
+| [LICENSE](./LICENSE) | MIT 许可证，与脚本头部声明一致 |
 | [README.md](./README.md) | 英文 README |
 
 ## 注意事项
 
 - 当前逻辑主要面向麦可思风格页面
 - 如果学校页面结构改版，选择器可能需要同步更新
-- “下一门”步骤依赖按钮文本模糊匹配
+- "下一门"步骤依赖按钮文本模糊匹配
 - 文本评语目前为固定内容，不会自动生成多样化文案
-- 仓库目前没有单独的 `LICENSE` 文件，但脚本头部声明为 `MIT`
+- 仓库已包含独立的 `LICENSE` 文件，与脚本头部声明的 MIT 一致
 
 ## 免责声明
 
