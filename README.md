@@ -11,7 +11,7 @@ A userscript for MyCOS-based course evaluation pages, with auto fill, auto confi
 [![Version](https://img.shields.io/badge/version-2.3.0-2f855a?style=flat-square)](./auto.user.js)
 [![Platform](https://img.shields.io/badge/platform-UserScript-1f2937?style=flat-square)](https://docs.scriptcat.org/)
 [![Engine](https://img.shields.io/badge/target-MyCOS-8b5cf6?style=flat-square)](https://www.mycospxk.com/)
-[![License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](./auto.user.js)
+[![License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](./LICENSE)
 
 [English](./README.md) · [简体中文](./README-zh.md)
 
@@ -142,7 +142,7 @@ This makes it lightweight, but also means it depends on the target page structur
 | --- | --- |
 | [auto.user.js](./auto.user.js) | Main userscript |
 | [logo.png](./logo.png) | Project logo |
-| [OpenWrt.mtd1.bin](./OpenWrt.mtd1.bin) | Existing binary file in the repo, unrelated to the core script behavior |
+| [LICENSE](./LICENSE) | MIT License, matching the script header |
 | [README-zh.md](./README-zh.md) | Chinese README |
 
 ## Notes
@@ -151,7 +151,7 @@ This makes it lightweight, but also means it depends on the target page structur
 - If the school updates the page structure, selectors may need adjustment
 - The "next course" step relies on fuzzy text matching for buttons
 - Text comments are currently fixed instead of randomly generated
-- The repository does not currently include a standalone `LICENSE` file, although the script header declares `MIT`
+- The repository includes a standalone `LICENSE` file matching the MIT header in the script
 
 ## Disclaimer
 
