@@ -1,0 +1,8 @@
+# editor / OS
+.DS_Store
+Thumbs.db
+*.local
+
+# userscript caches / backups
+*.user.js.bak
+*.user.js.old
