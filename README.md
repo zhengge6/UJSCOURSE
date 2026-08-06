@@ -8,7 +8,7 @@
 
 A userscript for MyCOS-based course evaluation pages, with auto fill, auto confirm, and continuous next-course processing.
 
-[![Version](https://img.shields.io/badge/version-2.3.0-2f855a?style=flat-square)](./auto.user.js)
+[![Version](https://img.shields.io/badge/version-2.4.0-2f855a?style=flat-square)](./auto.user.js)
 [![Platform](https://img.shields.io/badge/platform-UserScript-1f2937?style=flat-square)](https://docs.scriptcat.org/)
 [![Engine](https://img.shields.io/badge/target-MyCOS-8b5cf6?style=flat-square)](https://www.mycospxk.com/)
 [![License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](./LICENSE)
