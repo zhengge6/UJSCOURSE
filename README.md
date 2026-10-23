@@ -4,155 +4,131 @@
 
 # UJSCOURSE
 
-**Jiangsu University Course Evaluation Helper**
+**Jiangsu University course-evaluation helper for MyCOS 4.5.x**
 
-A userscript for MyCOS-based course evaluation pages, with auto fill, auto confirm, and continuous next-course processing.
+Desktop userscript · full-auto loop · multi-teacher tabs · positive-only scoring
 
-[![Version](https://img.shields.io/badge/version-2.4.0-2f855a?style=flat-square)](./auto.user.js)
-[![Platform](https://img.shields.io/badge/platform-UserScript-1f2937?style=flat-square)](https://docs.scriptcat.org/)
-[![Engine](https://img.shields.io/badge/target-MyCOS-8b5cf6?style=flat-square)](https://www.mycospxk.com/)
-[![License](https://img.shields.io/badge/license-MIT-f59e0b?style=flat-square)](./LICENSE)
+[![Version](https://img.shields.io/badge/version-3.1.0-0ea5e9?style=flat-square)](./auto.user.js)
+[![Platform](https://img.shields.io/badge/platform-Desktop%20only-111827?style=flat-square)](#access--entry)
+[![Target](https://img.shields.io/badge/target-MyCOS%204.5.x-8b5cf6?style=flat-square)](https://ujs.mycospxk.com/)
+[![License](https://img.shields.io/badge/license-Proprietary-dc2626?style=flat-square)](./LICENSE)
 
 [English](./README.md) · [简体中文](./README-zh.md)
 
-[Quick Start](#quick-start) · [Features](#features) · [Configuration](#configuration) · [How It Works](#how-it-works) · [Notes](#notes)
+[Access & Entry](#access--entry) · [Quick Start](#quick-start) · [Features](#features) · [Disclaimer](#disclaimer) · [License](#license)
 
 </div>
 
 ---
 
-## What Is This
+## Access & Entry
 
-`UJSCOURSE` is a userscript for Jiangsu University course evaluation workflows.
+> **Desktop only.** This script is built for the **PC web** evaluation UI. Mobile / WeChat H5 is not supported.
 
-It injects action buttons into the evaluation page and helps with:
+### 1. Open the university portal
 
-- auto-selecting radio options
-- auto-selecting checkbox options
-- auto-filling text comments
-- auto-confirming submission dialogs
-- continuously moving to the next course
+In a desktop browser, visit:
 
-This project works on the page itself through browser DOM interactions. It is not a backend tool or API client.
+**http://ehall.ujs.edu.cn/**
 
-## Features
+### 2. Search and open the platform
 
-### 1. Fill Only
+After login, use the **top search bar**, type **教学质量管理平台**, press Enter, then open the official result.
 
-When you enter an evaluation page, the script injects a `Fill Only` button.
+Direct app link:
 
-Clicking it will:
+**https://ehall.ujs.edu.cn/appShow?appId=7411413317485319/**
 
-- select radio choices within the configured range
-- select checkbox items on the page
-- fill text areas with the configured comment
+You should land on the MyCOS teaching-quality portal (e.g. `ujs.mycospxk.com`). Open **My Tasks → Unfinished**.
 
-This mode does **not** submit automatically, which makes it better for review-first usage.
-
-### 2. Full Auto Loop
-
-Clicking `Full Auto Loop` will run this sequence:
-
-1. fill the current evaluation form
-2. click submit
-3. confirm the dialog automatically
-4. find a button containing "next"
-5. continue on the next course page
-
-Loop state is stored in `sessionStorage`, so the flow can continue after page navigation.
-
-### 3. Stop Loop
-
-While auto mode is running, a `Stop Loop` button is shown so the process can be stopped at any time.
+---
 
 ## Quick Start
 
-### Install a userscript manager
+1. Install [Tampermonkey](https://www.tampermonkey.net/) or [ScriptCat](https://docs.scriptcat.org/) on **desktop** Chrome / Edge.
+2. Install [`auto.user.js`](./auto.user.js) from this repository (Releases recommended).
+3. Enter the platform via [Access & Entry](#access--entry).
+4. On an unfinished-task or answer page, use the floating panel → **Full auto**.
 
-Recommended:
+Answer-page shortcuts:
 
-- [ScriptCat](https://docs.scriptcat.org/)
-- [Tampermonkey](https://www.tampermonkey.net/)
+- **One-click fill** — populate only  
+- **Fill & submit** — fill every teacher tab and submit the current course  
 
-### Install the script
+---
 
-Open and install directly:
+## Features
 
-- [auto.user.js](https://github.com/zhengge6/UJSCOURSE/raw/main/auto.user.js)
+| Capability | Detail |
+|---|---|
+| **Full auto** | Fill → submit → next course → next questionnaire |
+| **Multi-teacher tabs** | Completes every instructor tab before submit |
+| **Safe scoring** | Positive-only mix (top / second-tier); never “average” or negative; never all-max |
+| **Concurrency** | Optional multi-tab workers (`1`–`5`) |
+| **MyCOS 4.5.x** | Correct handling of reversed Likert order (poor → excellent) |
+| **Floating control** | Start / stop / concurrency |
 
-If your userscript manager does not capture it automatically, you can also copy the contents of [auto.user.js](./auto.user.js) into a new script manually.
-
-### Use it
-
-1. Log in to the school evaluation system
-2. Open a course evaluation page
-3. Wait for the script buttons to appear
-4. Choose `Fill Only` or `Full Auto Loop`
+---
 
 ## Configuration
 
-Current default configuration:
+Edit `config` inside `auto.user.js`:
 
-```javascript
-const config = {
-  autoSubmit: false,
-  radio: [0, 1],
-  checkbox: true,
-  comment: "我对本课程非常满意，老师教学认真负责。",
-  reviewHref: "answer",
-  reviewParentElement: "div.ant-tabs div.ant-tabs-bar div.ant-tabs-nav-container div.ant-tabs-nav-wrap div.ant-tabs-nav-scroll",
-  reviewRadioField: ["非常", "", "一般", "不", "非常不"],
-  reviewSubmitElement: ".ant-btn.ant-btn-primary:not(.--lcandy2-mycos-auto-review)",
-  reviewModalElement: "div.ant-modal-body"
-};
+```js
+{
+  strongRatio: 0.35,      // share of top-tier positives
+  strongMaxRatio: 0.5,    // cap so a form cannot be all-max
+  minGoodCount: 1,        // at least one second-tier positive
+  concurrency: 1,         // 1 = serial (recommended); 2–5 = multi-tab
+  comments: [ /* ... */ ],
+}
 ```
 
-Fields you will usually care about:
-
-| Field | Purpose |
-| --- | --- |
-| `radio` | Range of radio choices. `[0, 1]` means random selection between the top two options |
-| `checkbox` | Whether checkbox questions should be selected automatically |
-| `comment` | Default text comment |
-| `reviewHref` | Keyword used to detect evaluation pages |
-
-Score index meaning:
-
-- `0 = strongly agree`
-- `1 = agree`
-- `2 = neutral`
-- `3 = disagree`
-- `4 = strongly disagree`
-
-## How It Works
-
-The script currently depends on frontend page structure and browser behavior:
-
-- uses `MutationObserver` to watch page changes
-- hooks `history.pushState` and `replaceState` for in-site navigation
-- checks page structure to detect evaluation areas
-- auto-confirms modal dialogs when auto flow is active
-- polls for a "next" button to continue the loop
-
-This makes it lightweight, but also means it depends on the target page structure staying compatible.
-
-## Files
-
-| File | Description |
-| --- | --- |
-| [auto.user.js](./auto.user.js) | Main userscript |
-| [logo.png](./logo.png) | Project logo |
-| [LICENSE](./LICENSE) | MIT License, matching the script header |
-| [README-zh.md](./README-zh.md) | Chinese README |
-
-## Notes
-
-- The current logic mainly targets MyCOS-style evaluation pages
-- If the school updates the page structure, selectors may need adjustment
-- The "next course" step relies on fuzzy text matching for buttons
-- Text comments are currently fixed instead of randomly generated
-- The repository includes a standalone `LICENSE` file matching the MIT header in the script
+---
 
 ## Disclaimer
 
-This project is intended for userscript and frontend automation learning. Please use it according to your own judgment and local rules.
+1. **Personal use only.** Use this software only on **your own** account to complete **your own** evaluation tasks.
+2. **No warranty.** The software is provided “as is”. The author is not responsible for failed submits, account restrictions, data loss, or any academic / administrative consequences.
+3. **You are responsible.** You must follow Jiangsu University rules and applicable laws. Misuse (including assisting others at scale, commercial “evaluation services”, or abuse of the platform) is solely your liability.
+4. **No affiliation.** This project is **not** affiliated with, endorsed by, or sponsored by Jiangsu University or MyCOS / 麦可思.
+5. **Desktop scope.** Mobile layouts and mini-programs are out of scope; behavior there is undefined.
+6. **Distribution locked.** Redistribution without the author’s written authorization is prohibited — see [License](#license).
+
+---
+
+## License
+
+**Proprietary — All Rights Reserved.**
+
+Copyright (c) 2026 Zheng.
+
+- Personal, non-commercial use on your own devices is allowed.
+- **Redistribution, republishing, mirroring, or sharing (modified or not) without prior written authorization is forbidden.**
+- Commercial use and third-party service wrapping are forbidden without authorization.
+
+See [`LICENSE`](./LICENSE) for the full terms.
+
+---
+
+## Project layout
+
+```text
+UJSCOURSE/
+├── README.md / README-zh.md
+├── LICENSE                 # Proprietary
+├── logo.png
+└── auto.user.js            # Userscript v3.1.0
+```
+
+## Changelog
+
+| Version | Notes |
+|---|---|
+| **3.1.0** | Full auto, multi-teacher, positive mix, multi-tab concurrency, 4.5.x scales |
+| **2.5.0** | Prior AI-assisted loop (historical) |
+| **2.4.x** | Prior continuous next-course flow |
+
+## Credits
+
+Maintained by [Zheng](https://github.com/zhengge6). Earlier community work by lcandy2.

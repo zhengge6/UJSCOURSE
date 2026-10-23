@@ -1,880 +1,619 @@
 // ==UserScript==
-// @name         自动评教：江苏大学
-// @namespace
-// @version      2.5.0
+// @name         UJSCOURSE · 江苏大学自动评教
+// @namespace    
+// @version      3.1.0
 // @author       Zheng
-// @description  自动评教助手：单选/多选/文本自动填充、全自动循环评教、AI 建议全自动评教（生成建议->填充->提交->下一门）、随机评语、进度统计。
-// @license      MIT
+// @description  MyCOS 4.5.x 全自动评教：多教师 Tab、自动提交、自动下一课程/下一问卷；好评混搭（不全满分、无差评）；可选多标签并发。
+// @license      Proprietary
 // @icon         https://ts3.tc.mm.bing.net/th/id/ODF.OBdTb_bnewqEd7HjDCi4mg?w=32&h=32&qlt=90&pcl=fffffa&o=6&pid=1.2
 // @match        *://*.edu.cn/*
 // @match        *://*.mycospxk.com/*
-// @match        https://github.com/*
-// @grant        GM_getValue
-// @grant        GM_setValue
-// @grant        GM_addStyle
-// @grant        GM_xmlhttpRequest
-// @connect      *
 // @require      https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js
-// @run-at       document-start
+// @run-at       document-idle
+// @grant        GM_openInTab
+// @grant        unsafeWindow
 // ==/UserScript==
 
 (function ($) {
   'use strict';
 
-  // NOTE: This script includes an optional "AI helper" panel that generates a suggestion plan
-  // (structured JSON + UI highlights). It does NOT auto-submit; "apply" only fills options/comments.
+  const STORAGE_KEY = 'ujs_auto_review_state_v31';
+  const PANEL_ID = 'ujs-auto-review-panel';
 
-  // --- 核心配置 ---
   const config = {
-    // 自动提交开关（脚本内部管理，无需手动改）
-    autoSubmit: false,
-    // 评价内容: 0=非常同意, 1=同意
+    // 语义档位只允许 0/1：最正面 / 次正面。禁止一般及差评
     radio: [0, 1],
-    // 单选题语义匹配词表：0=最正向，4=最负向
-    radioKeywords: [
-      ["非常同意", "完全同意", "非常满意", "完全满意", "特别满意", "非常好", "优秀"],
-      ["同意", "满意", "较满意", "良好", "好"],
-      ["一般", "中立", "普通", "中等", "还行"],
-      ["不同意", "不满意", "较差", "不好"],
-      ["非常不同意", "完全不同意", "非常不满意", "完全不满意", "很差", "差"]
-    ],
+    // 最正面占比（其余用次正面）。不能为 1，否则易被拒（全满分）
+    strongRatio: 0.35,
+    // 单卷内最正面题数上限比例
+    strongMaxRatio: 0.5,
+    // 至少保留几道次正面
+    minGoodCount: 1,
     checkbox: true,
-    // 评语池：每次随机取一条（避免所有课程评语雷同）
     comments: [
-      "我对本课程非常满意，老师教学认真负责。",
-      "老师讲解清晰，课堂氛围好，收获很大。",
-      "课程内容丰富，授课生动，受益匪浅。",
-      "教学严谨细致，重点突出，非常喜欢。",
-      "老师认真负责，答疑耐心，课程体验很好。",
-      "课程安排合理，讲授深入浅出，好评。",
-      "感谢老师一学期的辛勤付出，课程很棒。",
-      "老师教学水平高，课堂互动充分，很满意。"
+      '课程内容充实，讲解清楚，收获较大。',
+      '老师认真负责，课堂节奏合适。',
+      '整体满意度较高，希望继续保持。',
+      '内容易懂，互动较好，总体满意。',
+      '授课条理清晰，学习收获明显。'
     ],
-    comment: "我对本课程非常满意，老师教学认真负责。",
-    // 下一门按钮关键词
-    nextKeyword: "下一",
-    ai: {
-      enabled: true,
-      endpoint: "https://api.openai.com/v1/chat/completions",
-      apiKey: "",
-      model: "gpt-4o-mini",
-      temperature: 0.2
-    },
-
-    // DOM 元素配置
-    reviewHref: "answer",
-    reviewParentElement: "div.ant-tabs div.ant-tabs-bar div.ant-tabs-nav-container div.ant-tabs-nav-wrap div.ant-tabs-nav-scroll",
-    reviewRadioField: ["非常", "", "一般", "不", "非常不"],
-    reviewSubmitElement: ".ant-btn.ant-btn-primary:not(.--lcandy2-mycos-auto-review)",
-    reviewModalElement: "div.ant-modal-body"
+    reviewHref: 'answer',
+    delayTab: 400,
+    delayAfterFill: 500,
+    delayAfterSubmit: 1800,
+    delayNav: 1200,
+    // 多标签并发数（1=单页串行全自动；>1 时在课程列表页拆分到多个标签）
+    concurrency: 2,
+    buttonClass: '--lcandy2-mycos-auto-review',
+    reviewSubmitElement: '.ant-btn.ant-btn-primary:not(.--lcandy2-mycos-auto-review)',
+    reviewModalElement: 'div.ant-modal-body',
+    buttonParents: [
+      'div[class*="submitContext"]',
+      'div.ant-tabs-nav-scroll',
+      'div.ant-tabs-nav-wrap',
+      'div[class*="AnswerFinalEvaluate"][class*="top"]',
+      'div[class*="index__answer"]',
+      'main',
+      'body'
+    ]
   };
 
-  const gmGet = (key, fallback) => {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const log = (...args) => console.log('[UJS Auto Review]', ...args);
+  const getRnd = (min, max) => Math.floor(Math.random() * (max + 1 - min)) + min;
+
+  const loadState = () => {
     try {
-      if (typeof GM_getValue === "function") return GM_getValue(key, fallback);
-    } catch (e) {}
-    return fallback;
-  };
-
-  const gmSet = (key, value) => {
-    try {
-      if (typeof GM_setValue === "function") return GM_setValue(key, value);
-    } catch (e) {}
-  };
-
-  const normalizeText = (text) => {
-    return (text || "").replace(/\s+/g, "").replace(/[：:，,。.!！?？]/g, "").trim();
-  };
-
-  const safeJsonParse = (text) => {
-    try { return JSON.parse(text); } catch (e) { return null; }
-  };
-
-  const getAiCfg = () => {
-    const raw = gmGet("ujs_ai_cfg", "");
-    if (!raw) return { ...config.ai };
-    const parsed = safeJsonParse(raw);
-    if (!parsed || typeof parsed !== "object") return { ...config.ai };
-    return { ...config.ai, ...parsed };
-  };
-
-  const setAiCfg = (aiCfg) => {
-    gmSet("ujs_ai_cfg", JSON.stringify(aiCfg || {}));
-  };
-
-  const callAi = (aiCfg, prompt, onOk, onErr) => {
-    const payload = {
-      model: aiCfg.model,
-      temperature: aiCfg.temperature,
-      messages: [
-        { role: "system", content: "You are a helper that returns STRICT JSON only." },
-        { role: "user", content: prompt }
-      ]
-    };
-
-    const headers = {
-      "Content-Type": "application/json",
-      "Authorization": "Bearer " + (aiCfg.apiKey || "")
-    };
-
-    const url = (aiCfg.endpoint || "").replace(/\/+$/, "");
-    if (!url) return onErr("AI endpoint is empty");
-    if (!aiCfg.apiKey) return onErr("AI apiKey is empty");
-
-    if (typeof GM_xmlhttpRequest === "function") {
-      GM_xmlhttpRequest({
-        method: "POST",
-        url,
-        headers,
-        data: JSON.stringify(payload),
-        timeout: 45000,
-        onload: (res) => {
-          if (!res || res.status < 200 || res.status >= 300) return onErr("HTTP " + (res ? res.status : "?"));
-          const data = safeJsonParse(res.responseText);
-          if (!data) return onErr("Invalid JSON response");
-          const content = data?.choices?.[0]?.message?.content;
-          if (!content) return onErr("Empty AI content");
-          onOk(content);
-        },
-        onerror: () => onErr("Network error"),
-        ontimeout: () => onErr("Timeout")
-      });
-      return;
-    }
-
-    fetch(url, { method: "POST", headers, body: JSON.stringify(payload) })
-      .then((r) => r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status)))
-      .then((data) => {
-        const content = data?.choices?.[0]?.message?.content;
-        if (!content) throw new Error("Empty AI content");
-        onOk(content);
-      })
-      .catch((e) => onErr(String(e && e.message ? e.message : e)));
-  };
-
-  const extractSurvey = () => {
-    const questions = [];
-
-    $(".ant-radio-group").each((idx, groupEl) => {
-      const $group = $(groupEl);
-      const $options = $group.find(".ant-radio-wrapper");
-      if (!$options.length) return;
-
-      const $item = $group.closest(".ant-form-item");
-      const labelText =
-        $item.find(".ant-form-item-label").text().trim() ||
-        $item.find("label").first().text().trim() ||
-        "";
-
-      const options = $options.map((_, opt) => $(opt).text().trim()).get();
-      questions.push({
-        type: "radio",
-        label: labelText,
-        options
-      });
-    });
-
-    $(".ant-checkbox-group").each((idx, groupEl) => {
-      const $group = $(groupEl);
-      const $item = $group.closest(".ant-form-item");
-      const labelText =
-        $item.find(".ant-form-item-label").text().trim() ||
-        $item.find("label").first().text().trim() ||
-        "";
-
-      const options = $group.find(".ant-checkbox-wrapper").map((_, opt) => $(opt).text().trim()).get();
-      if (!options.length) return;
-      questions.push({
-        type: "checkbox",
-        label: labelText,
-        options
-      });
-    });
-
-    const textAreas = $(".ant-input").map((_, el) => el).get().filter((el) => (el && el.tagName || "").toLowerCase() === "textarea");
-    if (textAreas.length) {
-      questions.push({
-        type: "text",
-        label: "Comment",
-        options: []
-      });
-    }
-
-    return { url: location.href, questions };
-  };
-
-  const buildAiPrompt = (survey, prefs) => {
-    const minScore = Math.min.apply(null, prefs.radio);
-    const maxScore = Math.max.apply(null, prefs.radio);
-    return [
-      "Return STRICT JSON only, no markdown, no explanation.",
-      "",
-      "Task: produce a suggestion plan for a course-evaluation form.",
-      "Constraints:",
-      "- Do NOT include any auto-submit instructions.",
-      "- For radio questions, choose ONE option that matches the desired sentiment score range.",
-      "- Desired score range: " + minScore + " to " + maxScore + " (0=most positive, 4=most negative).",
-      "- For checkbox questions, you may choose all options (or leave empty if unsure).",
-      '- Also return a "comment" string suggestion (can reuse the provided default).',
-      "",
-      "Output schema:",
-      '{ "radio": [ { "q": "<label>", "pick": "<exact option text>" } ], "checkbox": [ { "q": "<label>", "pick": ["<exact option text>", "..."] } ], "comment": "<text>" }',
-      "",
-      "Form JSON:",
-      JSON.stringify(survey),
-      "",
-      "Default comment:",
-      prefs.comment
-    ].join("\n");
-  };
-
-  const applyAiHighlight = (plan) => {
-    $(".ujs-ai-hl").removeClass("ujs-ai-hl");
-
-    const normalize = (s) => normalizeText(s);
-
-    if (plan && Array.isArray(plan.radio)) {
-      plan.radio.forEach((entry) => {
-        const pick = normalize(entry && entry.pick);
-        if (!pick) return;
-        $(".ant-radio-wrapper").each((_, el) => {
-          if (normalize($(el).text()) === pick) $(el).addClass("ujs-ai-hl");
-        });
-      });
-    }
-
-    if (plan && Array.isArray(plan.checkbox)) {
-      plan.checkbox.forEach((entry) => {
-        const picks = (entry && entry.pick) || [];
-        const set = new Set(picks.map(normalize).filter(Boolean));
-        if (!set.size) return;
-        $(".ant-checkbox-wrapper").each((_, el) => {
-          if (set.has(normalize($(el).text()))) $(el).addClass("ujs-ai-hl");
-        });
-      });
-    }
-  };
-
-  // 按 AI 建议实际填充选项与评语（不提交）
-  const applyAiPlan = (plan) => {
-    const normalize = (s) => normalizeText(s);
-    let applied = 0;
-
-    if (plan && Array.isArray(plan.radio)) {
-      plan.radio.forEach((entry) => {
-        const pick = normalize(entry && entry.pick);
-        if (!pick) return;
-        $(".ant-radio-group").each((_, group) => {
-          const $wrapper = $(group).find(".ant-radio-wrapper").filter(function() {
-            return normalize($(this).text()) === pick;
-          }).first();
-          if ($wrapper.length && !$wrapper.find(".ant-radio-checked").length) {
-            $wrapper.trigger("click");
-            applied += 1;
-          }
-        });
-      });
-    }
-
-    if (plan && Array.isArray(plan.checkbox)) {
-      plan.checkbox.forEach((entry) => {
-        const picks = (entry && entry.pick) || [];
-        const set = new Set(picks.map(normalize).filter(Boolean));
-        if (!set.size) return;
-        $(".ant-checkbox-group").each((_, group) => {
-          $(group).find(".ant-checkbox-wrapper").each((_, el) => {
-            const $wrap = $(el);
-            if (set.has(normalize($wrap.text())) && !$wrap.find(".ant-checkbox-checked").length) {
-              $wrap.trigger("click");
-              applied += 1;
-            }
-          });
-        });
-      });
-    }
-
-    const comment = (plan && plan.comment) || pickComment(config);
-    if (comment) {
-      fillComments(comment);
-      applied += 1;
-    }
-
-    return applied;
-  };
-
-  // 一键全自动（AI 版）：生成建议 -> 填充 -> 提交 -> 确认 -> 下一门，全程无人值守
-  // 状态标记：sessionStorage "UJS_AI_AUTO" = 'true'，独立于规则版 UJS_Auto_Loop
-  const aiAutoLoop = () => {
-    const nextCfg = getAiCfg();
-    const survey = extractSurvey();
-    if (!survey.questions.length) {
-      sessionStorage.removeItem("UJS_AI_AUTO");
-      console.warn("[自动评教] AI 全自动：当前页面未检测到问卷题目");
-      return;
-    }
-
-    const prompt = buildAiPrompt(survey, { radio: config.radio, comment: config.comment });
-    const logMsg = (m) => {
-      const panel = document.getElementById("ujs-ai-panel");
-      const logEl = panel && panel.querySelector("#ujs-ai-log");
-      if (logEl) logEl.textContent = (logEl.textContent ? logEl.textContent + "\n" : "") + m;
-    };
-
-    logMsg("[AI] 全自动：生成建议中...");
-    callAi(nextCfg, prompt, (content) => {
-      const trimmed = String(content).trim();
-      const plan = safeJsonParse(trimmed);
-      if (!plan) {
-        logMsg("[ERR] 全自动：建议不是合法 JSON，跳过");
-        return;
-      }
-      // 填充建议（不提交）
-      applyAiPlan(plan);
-      applyAiHighlight(plan);
-      logMsg("[OK] 已填充 " + survey.questions.length + " 题，提交中...");
-
-      // 提交 + 计数 + 检测下一门
-      const $submitButton = $(config.reviewSubmitElement);
-      if ($submitButton.length) incDoneCount();
-      $(config.reviewSubmitElement).trigger("click");
-      checkAndClickNext();
-    }, (err) => {
-      logMsg("[ERR] 全自动：" + err);
-    });
-  };
-
-  const filterQuestionsForDebug = (patternText) => {
-    $(".ujs-ai-hidden").removeClass("ujs-ai-hidden");
-    const raw = (patternText || "").trim();
-    if (!raw) return 0;
-
-    let re = null;
-    try {
-      // Support /re/flags style, otherwise treat as case-insensitive substring regex.
-      const m = raw.match(/^\/(.+)\/([gimsuy]*)$/);
-      if (m) re = new RegExp(m[1], m[2]);
-      else re = new RegExp(raw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+      return JSON.parse(sessionStorage.getItem(STORAGE_KEY) || '{}');
     } catch (e) {
-      // If regex fails, fall back to substring matching.
-      re = null;
+      return {};
     }
+  };
+  const saveState = (patch) => {
+    const next = Object.assign(loadState(), patch, { updatedAt: Date.now() });
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    return next;
+  };
+  const clearState = () => sessionStorage.removeItem(STORAGE_KEY);
 
-    const matches = (text) => {
-      const t = String(text || "");
-      if (re) return re.test(t);
-      return t.toLowerCase().includes(raw.toLowerCase());
-    };
-
-    let shown = 0;
-    $(".ant-form-item").each((_, itemEl) => {
-      const $item = $(itemEl);
-      const hasQuestion = $item.find(".ant-radio-group,.ant-checkbox-group,textarea.ant-input,.ant-input").length > 0;
-      if (!hasQuestion) return;
-
-      const labelText = $item.find(".ant-form-item-label").text().trim() || $item.find("label").first().text().trim();
-      const optionText = $item.find(".ant-radio-wrapper,.ant-checkbox-wrapper").map((_, el) => $(el).text().trim()).get().join(" ");
-      const hay = (labelText ? labelText + " " : "") + optionText;
-
-      if (matches(hay)) {
-        shown += 1;
-      } else {
-        $item.addClass("ujs-ai-hidden");
-      }
-    });
-
-    return shown;
+  const pageKind = (href = location.href) => {
+    if (/#\/my-task\/answer\//.test(href)) return 'answer';
+    if (/#\/my-task\/details\//.test(href)) return 'details';
+    if (/#\/my-task\/main\//.test(href)) return 'main';
+    return 'other';
   };
 
-  const ensureAiUi = () => {
-    if (!config.ai.enabled) return;
-    if (document.getElementById("ujs-ai-panel")) return;
-
-    if (typeof GM_addStyle === "function") {
-      GM_addStyle([
-        "#ujs-ai-panel{position:fixed;right:20px;bottom:20px;z-index:2147483647;width:360px;max-height:70vh;display:none;flex-direction:column;overflow:hidden;",
-        "background:rgba(18,18,24,.92);backdrop-filter:blur(14px);border:1px solid rgba(255,255,255,.08);border-radius:14px;box-shadow:0 18px 60px rgba(0,0,0,.55);",
-        "font-family:system-ui,Segoe UI,Arial;font-size:12px;color:rgba(255,255,255,.85)}",
-        "#ujs-ai-panel.open{display:flex}",
-        "#ujs-ai-hdr{display:flex;align-items:center;justify-content:space-between;padding:12px 12px;border-bottom:1px solid rgba(255,255,255,.06)}",
-        "#ujs-ai-hdr b{color:#fff;font-size:13px}",
-        "#ujs-ai-hdr button{border:none;background:rgba(255,255,255,.08);color:rgba(255,255,255,.8);border-radius:8px;padding:6px 8px;cursor:pointer}",
-        "#ujs-ai-body{padding:10px 12px;overflow:auto;display:flex;flex-direction:column;gap:8px}",
-        "#ujs-ai-body label{display:block;color:rgba(255,255,255,.7);margin-bottom:4px}",
-        "#ujs-ai-body input{width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#fff;border-radius:10px;padding:8px}",
-        "#ujs-ai-body textarea{width:100%;box-sizing:border-box;min-height:86px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.04);color:#fff;border-radius:10px;padding:8px;resize:vertical}",
-        "#ujs-ai-actions{display:flex;gap:8px;padding:10px 12px;border-top:1px solid rgba(255,255,255,.06)}",
-        "#ujs-ai-actions button{flex:1;border:none;border-radius:10px;padding:9px 10px;cursor:pointer;font-weight:700}",
-        "#ujs-ai-run{background:#10b981;color:#052e2a}",
-        "#ujs-ai-apply{background:#3b82f6;color:#fff}",
-        "#ujs-ai-auto{background:#f59e0b;color:#451a03}",
-        "#ujs-ai-copy{background:rgba(255,255,255,.12);color:#fff}",
-        "#ujs-ai-hl{background:rgba(255,255,255,.12);color:#fff}",
-        "#ujs-ai-log{white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;color:rgba(255,255,255,.75);padding:0 12px 12px}",
-        ".ujs-ai-hl{outline:2px solid rgba(59,130,246,.85);outline-offset:2px;border-radius:6px}",
-        ".ujs-ai-hidden{display:none !important}"
-      ].join(""));
-    }
-
-    const panel = document.createElement("div");
-    panel.id = "ujs-ai-panel";
-    panel.innerHTML = [
-      '<div id="ujs-ai-hdr"><b>AI 助手（仅建议，不自动提交）</b><button id="ujs-ai-close">✕</button></div>',
-      '<div id="ujs-ai-body">',
-      '<div><label>接口地址</label><input id="ujs-ai-endpoint" placeholder="https://.../v1/chat/completions"></div>',
-      '<div><label>API 密钥</label><input id="ujs-ai-key" placeholder="sk-..." type="password"></div>',
-      '<div><label>模型</label><input id="ujs-ai-model" placeholder="gpt-4o-mini"></div>',
-      '<div><label>温度</label><input id="ujs-ai-temp" placeholder="0.2"></div>',
-      '<div><label>筛选（关键词或 /正则/flags）</label><input id="ujs-ai-filter" placeholder="e.g. 满意 或 /满意|一般/i"></div>',
-      '<div><label>结果（JSON 建议）</label><textarea id="ujs-ai-result" placeholder="{...}"></textarea></div>',
-      "</div>",
-      '<div id="ujs-ai-actions">',
-      '<button id="ujs-ai-run">生成建议</button>',
-      '<button id="ujs-ai-apply">应用建议</button>',
-      '<button id="ujs-ai-auto">全自动</button>',
-      '<button id="ujs-ai-copy">复制</button>',
-      "</div>",
-      '<div id="ujs-ai-actions">',
-      '<button id="ujs-ai-hl">高亮</button>',
-      '<button id="ujs-ai-apply-filter">筛选</button>',
-      '<button id="ujs-ai-clear-filter">清除</button>',
-      '<button id="ujs-ai-dump">导出表单</button>',
-      "</div>",
-      '<div id="ujs-ai-log"></div>'
-    ].join("");
-    document.body.appendChild(panel);
-
-    const aiCfg = getAiCfg();
-    panel.querySelector("#ujs-ai-endpoint").value = aiCfg.endpoint || "";
-    panel.querySelector("#ujs-ai-key").value = aiCfg.apiKey || "";
-    panel.querySelector("#ujs-ai-model").value = aiCfg.model || "";
-    panel.querySelector("#ujs-ai-temp").value = String(aiCfg.temperature ?? 0.2);
-
-    const log = (msg) => {
-      const el = panel.querySelector("#ujs-ai-log");
-      el.textContent = (el.textContent ? el.textContent + "\n" : "") + msg;
-    };
-
-    panel.querySelector("#ujs-ai-close").onclick = () => panel.classList.remove("open");
-
-    const saveCfgFromUi = () => {
-      const next = {
-        endpoint: panel.querySelector("#ujs-ai-endpoint").value.trim(),
-        apiKey: panel.querySelector("#ujs-ai-key").value.trim(),
-        model: panel.querySelector("#ujs-ai-model").value.trim(),
-        temperature: Number(panel.querySelector("#ujs-ai-temp").value.trim() || "0.2")
-      };
-      setAiCfg(next);
-      return next;
-    };
-
-    panel.querySelector("#ujs-ai-run").onclick = () => {
-      const nextCfg = saveCfgFromUi();
-      const survey = extractSurvey();
-      if (!survey.questions.length) return log("[ERR] 当前页面未检测到问卷题目");
-
-      const prompt = buildAiPrompt(survey, { radio: config.radio, comment: config.comment });
-      log("[AI] 生成中...");
-
-      callAi(nextCfg, prompt, (content) => {
-        const trimmed = String(content).trim();
-        panel.querySelector("#ujs-ai-result").value = trimmed;
-        log("[OK] 已生成建议");
-      }, (err) => {
-        log("[ERR] " + err);
-      });
-    };
-
-    panel.querySelector("#ujs-ai-apply").onclick = () => {
-      const raw = panel.querySelector("#ujs-ai-result").value || "";
-      const plan = safeJsonParse(raw);
-      if (!plan) return log("[ERR] 结果不是合法 JSON");
-      const applied = applyAiPlan(plan);
-      applyAiHighlight(plan);
-      log("[OK] 已应用 " + applied + " 处（仅填充，未提交）");
-    };
-
-    panel.querySelector("#ujs-ai-auto").onclick = () => {
-      const confirmed = confirm("确认开始【AI 全自动评教】？\n\n脚本将：AI 生成建议 -> 填充 -> 提交 -> 确认弹窗 -> 跳转下一门 -> 重复。\n\n请先确认已填写 API 密钥。");
-      if (!confirmed) return;
-      saveCfgFromUi();
-      sessionStorage.setItem("UJS_AI_AUTO", "true");
-      aiAutoLoop();
-      log("[OK] AI 全自动已启动");
-    };
-
-    panel.querySelector("#ujs-ai-copy").onclick = async () => {
-      const text = panel.querySelector("#ujs-ai-result").value || "";
-      try {
-        await navigator.clipboard.writeText(text);
-        log("[OK] 已复制");
-      } catch (e) {
-        log("[ERR] 复制失败");
-      }
-    };
-
-    panel.querySelector("#ujs-ai-hl").onclick = () => {
-      const raw = panel.querySelector("#ujs-ai-result").value || "";
-      const plan = safeJsonParse(raw);
-      if (!plan) return log("[ERR] 结果不是合法 JSON");
-      applyAiHighlight(plan);
-      log("[OK] 已高亮（未自动点击）");
-    };
-
-    panel.querySelector("#ujs-ai-apply-filter").onclick = () => {
-      const patternText = panel.querySelector("#ujs-ai-filter").value || "";
-      const shown = filterQuestionsForDebug(patternText);
-      log("[OK] 筛选完成，显示 " + shown + " 题");
-    };
-
-    panel.querySelector("#ujs-ai-clear-filter").onclick = () => {
-      panel.querySelector("#ujs-ai-filter").value = "";
-      filterQuestionsForDebug("");
-      log("[OK] 已清除筛选");
-    };
-
-    panel.querySelector("#ujs-ai-dump").onclick = async () => {
-      const survey = extractSurvey();
-      const text = JSON.stringify(survey, null, 2);
-      panel.querySelector("#ujs-ai-result").value = text;
-      try {
-        await navigator.clipboard.writeText(text);
-        log("[OK] 已导出并复制表单 JSON");
-      } catch (e) {
-        log("[OK] 已导出表单 JSON（复制失败）");
-      }
-    };
-  };
-
-  // --- 原版填充逻辑 (完全保留，确保不漏选) ---
   const fillInput = (element, value) => {
-    const nativeInputValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
-    const inputEvent = new Event("input", { bubbles: true });
-    nativeInputValueSetter.call(element, value);
-    element.dispatchEvent(inputEvent);
+    const proto = element.tagName === 'TEXTAREA'
+      ? window.HTMLTextAreaElement.prototype
+      : window.HTMLInputElement.prototype;
+    const nativeSetter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+    nativeSetter.call(element, value);
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
   };
 
-  const getRnd = (min, max) => {
-    return Math.floor(Math.random() * (max + 1 - min)) + min;
-  };
+  const isNegativeAnchor = (t) =>
+    /非常不|非常差|不满意|^差$|^不$|不同意/.test(t);
+  const isStrongPositive = (t) =>
+    /非常好|非常同意|非常满意/.test(t) && !/非常不/.test(t);
+  const isSoftPositive = (t) => /^好$|^同意$|^满意$/.test(t);
 
-  const getRadioScoreByText = (text, radioKeywords) => {
-    const normalized = normalizeText(text);
-    if (!normalized) return -1;
-
-    for (let score = radioKeywords.length - 1; score >= 0; score--) {
-      if (radioKeywords[score].some((keyword) => normalized.includes(normalizeText(keyword)))) {
-        return score;
+  const rankOptions = (texts) => {
+    const n = texts.length;
+    const positions = { strong: -1, good: -1 };
+    texts.forEach((t, idx) => {
+      if (isStrongPositive(t)) positions.strong = idx;
+      else if (isSoftPositive(t)) positions.good = idx;
+    });
+    if (positions.strong < 0 || positions.good < 0) {
+      const first = texts[0] || '';
+      const last = texts[n - 1] || '';
+      const badFirst = isNegativeAnchor(first) || isStrongPositive(last);
+      if (badFirst) {
+        if (positions.strong < 0) positions.strong = n - 1;
+        if (positions.good < 0) positions.good = Math.max(0, n - 2);
+      } else {
+        if (positions.strong < 0) positions.strong = 0;
+        if (positions.good < 0) positions.good = Math.min(1, n - 1);
       }
     }
-
-    return -1;
-  };
-
-  const mapRadioOptions = ($options, radioKeywords) => {
-    const positions = new Array(5).fill(-1);
-    const unmatched = [];
-
-    $options.each((optionIndex, optionElement) => {
-      const text = $(optionElement).text().trim();
-      const score = getRadioScoreByText(text, radioKeywords);
-      if (score !== -1 && positions[score] === -1) {
-        positions[score] = optionIndex;
-      } else if (score === -1) {
-        unmatched.push(optionIndex);
-      }
-    });
-
-    const matchedCount = positions.filter((position) => position !== -1).length;
-    if (matchedCount >= 3) return positions;
-
-    if ($options.length === 5) {
-      return [0, 1, 2, 3, 4];
-    }
-
-    unmatched.forEach((optionIndex) => {
-      const firstEmpty = positions.findIndex((position) => position === -1);
-      if (firstEmpty !== -1) {
-        positions[firstEmpty] = optionIndex;
-      }
-    });
-
     return positions;
   };
 
-  const seleRadio = (selection, radioKeywords = config.radioKeywords) => {
-    let result = false;
-    const radioSelection = [...selection].sort((a, b) => a - b);
+  /** 好好评混搭：只要好评，不全满分，无差评 */
+  const seleRadio = () => {
+    const $groups = $('.ant-radio-group');
+    const total = $groups.length;
+    if (!total) return false;
 
-    $(".ant-radio-group").each((index, element) => {
-      const $options = $(element).find(".ant-radio-wrapper");
+    let strongBudget = Math.floor(total * config.strongRatio);
+    const strongCap = Math.floor(total * config.strongMaxRatio);
+    strongBudget = Math.min(strongBudget, Math.max(0, strongCap));
+    if (total - strongBudget < config.minGoodCount) {
+      strongBudget = Math.max(0, total - config.minGoodCount);
+    }
+
+    // 随机挑 strongBudget 道题给最正面
+    const strongSlots = new Set();
+    while (strongSlots.size < strongBudget) {
+      strongSlots.add(getRnd(0, total - 1));
+    }
+
+    $groups.each((qi, group) => {
+      const $options = $(group).find('.ant-radio-wrapper');
       if (!$options.length) return;
-
-      const positions = mapRadioOptions($options, radioKeywords);
-      const availableScores = radioSelection.filter((score) => positions[score] !== -1);
-      if (!availableScores.length) {
-        console.warn("[自动评教] 单选题未匹配到可用选项：", $options.map((_, option) => $(option).text().trim()).get());
-        return;
-      }
-
-      const chosenScore = availableScores[getRnd(0, availableScores.length - 1)];
-      $options.eq(positions[chosenScore]).trigger("click");
-      result = true;
+      const texts = $options.map((_, el) => $(el).text().trim()).get();
+      const pos = rankOptions(texts);
+      const useStrong = strongSlots.has(qi);
+      const domIdx = useStrong ? pos.strong : pos.good;
+      const $target = $options.eq(domIdx);
+      const input = $target.find('input.ant-radio-input, input[type="radio"]')[0];
+      if (input) input.click();
+      $target.trigger('click');
+      log(`[单选] #${qi + 1} → ${texts[domIdx]}`);
     });
-
-    return result;
-  };
-
-  const seleCheckbox = () => {
-    let checkbox_list = $(".ant-checkbox-group");
-    for (let i = 0; i < checkbox_list.length; i++) {
-      const inputs = $(checkbox_list[i]).find(".ant-checkbox-input");
-      inputs.each((_, input) => {
-        if (!input.checked) {
-          $(input).trigger("click");
-        }
-      });
-    }
     return true;
   };
 
-  const pickComment = (cfg) => {
-    const pool = (cfg.comments || []).filter((c) => c && c.trim());
-    if (pool.length) return pool[getRnd(0, pool.length - 1)];
-    return cfg.comment;
+  const seleCheckbox = (checkAll) => {
+    let hit = false;
+    $('.ant-checkbox-group').each((_, group) => {
+      $(group).find('.ant-checkbox-wrapper').each((__, wrap) => {
+        const $wrap = $(wrap);
+        const checked = $wrap.find('.ant-checkbox-checked').length > 0;
+        if ((checkAll && !checked) || (!checkAll && checked)) {
+          const input = $wrap.find('input.ant-checkbox-input, input[type="checkbox"]')[0];
+          if (input) input.click();
+          $wrap.trigger('click');
+          hit = true;
+        }
+      });
+    });
+    return hit;
   };
 
-  // 只填充 textarea，避免把评语写进普通输入框（学号/搜索框等）
-  const fillComments = (comment) => {
-    const textbox_list = $(".ant-input").filter(function() {
-      return (this.tagName || "").toLowerCase() === "textarea" && !this.disabled;
+  const fillComments = () => {
+    const list = config.comments.filter(Boolean);
+    if (!list.length) return false;
+    let hit = false;
+    $('textarea.ant-input, textarea').each((_, el) => {
+      if (el.disabled || el.readOnly) return;
+      fillInput(el, list[getRnd(0, list.length - 1)]);
+      hit = true;
     });
-    for (let i = 0; i < textbox_list.length; i++) {
-      const textArea = textbox_list[i];
-      fillInput(textArea, comment);
+    return hit;
+  };
+
+  const fillCurrentForm = () => {
+    log(seleRadio() ? '单选已填（好评混搭）' : '无单选');
+    log(seleCheckbox(config.checkbox) ? '多选已处理' : '无多选');
+    log(fillComments() ? '文本已填' : '无文本');
+  };
+
+  const teacherTabs = () =>
+    $('.ant-tabs-tab').filter((_, el) => {
+      const text = ($(el).text() || '').trim();
+      return text && !/进行中|已结束|未完成|已完成|全部/.test(text);
+    });
+
+  const fillAllTeacherTabs = async () => {
+    const $tabs = teacherTabs();
+    if ($tabs.length <= 1) {
+      fillCurrentForm();
+      return $tabs.length || 1;
     }
+    for (let i = 0; i < $tabs.length; i++) {
+      const $tab = $tabs.eq(i);
+      $tab.trigger('click');
+      await sleep(config.delayTab);
+      log(`教师 Tab: ${$tab.text().trim()}`);
+      fillCurrentForm();
+    }
+    return $tabs.length;
+  };
+
+  const dismissNoiseModals = () => {
+    $(config.reviewModalElement).each((_, body) => {
+      const text = ($(body).text() || '');
+      if (!/须知|说明|提示|知道了|开始评价|微信公众号|关注/.test(text)) return;
+      const $btn = $(body).find('button.ant-btn-primary, button').filter((__, b) => {
+        const t = ($(b).text() || '') + ($(b).attr('aria-label') || '');
+        return /知道了|确定|关闭|Close|开始|我知道/.test(t) || $(b).hasClass('ant-modal-close');
+      });
+      if ($btn.length) $btn.first().trigger('click');
+      else $(body).closest('.ant-modal-wrap').find('.ant-modal-close').trigger('click');
+    });
+    $('.ant-modal-close').each((_, el) => {
+      const wrap = $(el).closest('.ant-modal-wrap');
+      if (/微信公众号|关注/.test(wrap.text() || '')) $(el).trigger('click');
+    });
+  };
+
+  const findSubmitButton = () => {
+    const $btns = $(config.reviewSubmitElement).add('button.ant-btn-primary');
+    return $btns.filter((_, el) => {
+      const t = (($(el).text() || '')).replace(/\s+/g, '');
+      return t === '提交' || t.includes('提交');
+    }).filter((_, el) => !el.disabled && !/已提交/.test($(el).text() || ''));
+  };
+
+  const isSubmitted = () => {
+    const t = $('button').map((_, el) => ($(el).text() || '').replace(/\s+/g, '')).get().join('|');
+    return /已提交/.test(t);
+  };
+
+  const clickNextCourse = () => {
+    const $btn = $('button').filter((_, el) => /下一课程/.test(($(el).text() || '')) && !el.disabled);
+    if (!$btn.length) return false;
+    $btn.first().trigger('click');
     return true;
   };
 
-  const Review = () => {
-    seleRadio(config.radio);
-    seleCheckbox();
-    fillComments(pickComment(config));
-    console.log("[自动评教] 内容填充完成");
+  const clickEvalSpans = (root = document) =>
+    $(root)
+      .find('span[class*="edit"], td span, button')
+      .filter((_, el) => (($(el).text() || '').trim() === '评价'));
+
+  const waitFor = async (fn, timeout = 15000, step = 300) => {
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+      const v = fn();
+      if (v) return v;
+      await sleep(step);
+    }
+    return null;
   };
 
-  // --- 自动处理下一门逻辑 ---
-
-  // 读取/累加已完成课程数（sessionStorage，页面跳转后仍保留）
-  const getDoneCount = () => {
-    return parseInt(sessionStorage.getItem("UJS_COUNT") || "0", 10) || 0;
+  const setStatus = (text) => {
+    const $s = $(`#${PANEL_ID} .ujs-status`);
+    if ($s.length) $s.text(text);
+    saveState({ statusText: text });
+    log(text);
   };
 
-  const incDoneCount = () => {
-    const next = getDoneCount() + 1;
-    sessionStorage.setItem("UJS_COUNT", String(next));
-    return next;
+  const submitCurrent = async () => {
+    await sleep(config.delayAfterFill);
+    const $btn = findSubmitButton();
+    if (!$btn.length) {
+      if (isSubmitted()) return true;
+      throw new Error('未找到可点击的提交按钮');
+    }
+    $btn.first().trigger('click');
+    const ok = await waitFor(() => isSubmitted(), 12000, 400);
+    if (!ok) throw new Error('提交后未出现「已提交」');
+    return true;
   };
 
-  // 核心：检测并点击“下一门课程”
-  const checkAndClickNext = () => {
-    console.log("[自动评教] 开始搜索“下一门”按钮...");
-    let attempts = 0;
+  /** 单页：填完全部教师并提交 */
+  const runAnswerOnce = async () => {
+    dismissNoiseModals();
+    await waitFor(() => $('.ant-radio-group').length > 0, 10000);
+    const n = await fillAllTeacherTabs();
+    setStatus(`已填 ${n} 个教师，提交中…`);
+    await submitCurrent();
+    const st = loadState();
+    saveState({ doneCount: (st.doneCount || 0) + 1 });
+    setStatus(`提交成功，累计 ${(loadState().doneCount || 0)} 门`);
+  };
 
-    // 每秒检测一次，持续检测30秒（防止网速慢）
-    const timer = setInterval(() => {
-      attempts++;
-      // 模糊匹配可见按钮文字，兼容“下一门课程”、“下一位教师”等
-      const $nextBtn = $("button").filter(function() {
-        return $(this).text().trim().includes(config.nextKeyword) && $(this).is(":visible");
-      });
-      // 弹窗（如确认框）尚未关闭时不点击，避免误点
-      const modalOpen = $(".ant-modal-wrap:visible").length > 0;
-
-      if ($nextBtn.length && !modalOpen) {
-        clearInterval(timer);
-        console.log("[自动评教] 发现目标，立即跳转...");
-        $nextBtn.trigger("click");
-      } else if (attempts > 30) {
-        clearInterval(timer);
-        // 如果找不到下一门，且当前开启了全自动，说明可能评完了
-        if (sessionStorage.getItem('UJS_Auto_Loop') === 'true' || sessionStorage.getItem('UJS_AI_AUTO') === 'true') {
-           const done = getDoneCount();
-           console.log("[自动评教] 未找到下一门，流程可能结束。");
-           alert("自动评教流程结束，共完成 " + done + " 门课程。");
-           sessionStorage.removeItem('UJS_Auto_Loop');
-           sessionStorage.removeItem('UJS_AI_AUTO');
+  /** 全自动：当前答卷 → 下一课程 循环；没有下一课程则回列表 */
+  const runFullAutoAnswerLoop = async () => {
+    saveState({ running: true, mode: 'full', stop: false });
+    setStatus('全自动运行中…');
+    try {
+      while (loadState().running && !loadState().stop) {
+        if (pageKind() !== 'answer') break;
+        dismissNoiseModals();
+        if (!isSubmitted()) {
+          await runAnswerOnce();
+        } else {
+          setStatus('本课已提交，准备下一课程…');
         }
+        await sleep(config.delayAfterSubmit);
+        if (loadState().stop) break;
+        const hrefBefore = location.href;
+        if (!clickNextCourse()) {
+          setStatus('没有「下一课程」，返回任务列表…');
+          saveState({ running: true, phase: 'after-batch' });
+          // 回课程列表
+          const $back = $('a, button, span').filter((_, el) => /过程评价|任务列表|专项评价|返回/.test(($(el).text() || '').trim()));
+          if ($back.length) $back.first().trigger('click');
+          else history.back();
+          await sleep(config.delayNav);
+          break;
+        }
+        await waitFor(() => location.href !== hrefBefore, 10000);
+        await sleep(config.delayNav);
       }
-    }, 1000);
-  };
-
-  const executeReview = async (isAuto) => {
-    Review(); // 执行填充
-    const $submitButton = $(config.reviewSubmitElement);
-
-    if (isAuto) {
-      if ($submitButton.length) {
-        incDoneCount();
-        $submitButton.text("自动提交中...");
-      }
-      // 点击提交
-      $(config.reviewSubmitElement).trigger("click");
-
-      // 提交后，启动"下一门"检测
-      checkAndClickNext();
-    } else {
-      if ($submitButton.length) $submitButton.text("填充完成，请手动提交");
+    } catch (e) {
+      setStatus(`出错：${e.message || e}`);
+      saveState({ running: false, lastError: String(e.message || e) });
+      throw e;
     }
   };
 
-  // --- UI 与 状态管理 ---
-
-  const addReviewButton = (listener) => {
-    if ($("button.--lcandy2-mycos-auto-review").length) return;
-
-    const $parentElement = $(config.reviewParentElement);
-    // 样式美化
-    const btnStyle = "margin-left: 10px; border-radius: 4px; font-weight: bold;";
-
-    // 按钮1：停止/重置
-    const $stopBtn = $(`<button type="button" class="ant-btn ant-btn-danger --lcandy2-mycos-auto-review" style="${btnStyle}">停止循环</button>`);
-    $stopBtn.on("click", () => {
-        sessionStorage.removeItem('UJS_Auto_Loop');
-        sessionStorage.removeItem('UJS_AI_AUTO');
-        alert("全自动循环已停止");
-        location.reload();
-    });
-
-    // 按钮2：全自动开始
-    const $startBtn = $(`<button type="button" class="ant-btn ant-btn-primary --lcandy2-mycos-auto-review" style="${btnStyle} background-color: #52c41a; border-color: #52c41a;">🚀 全自动评教循环</button>`);
-    $startBtn.on("click", () => {
-        const confirmed = confirm("确认开始【全自动评教】？\n\n脚本将自动：填充 -> 提交 -> 确认 -> 跳转下一门 -> 重复。\n\n请不要关闭浏览器。");
-        if (confirmed) {
-            sessionStorage.setItem('UJS_Auto_Loop', 'true');
-            sessionStorage.setItem('UJS_COUNT', '0'); // 新一轮从 0 计数
-            listener(true); // 立即开始当前页面的评教
-        }
-    });
-
-    // 如果正在自动运行中（规则版或 AI 版），显示运行状态与进度
-    if (sessionStorage.getItem('UJS_Auto_Loop') === 'true' || sessionStorage.getItem('UJS_AI_AUTO') === 'true') {
-        const done = getDoneCount();
-        $startBtn.text("♻️ 自动循环运行中 · 已完成 " + done + " 门").prop("disabled", true);
-        $parentElement.append($startBtn).append($stopBtn);
-
-        // 自动触发逻辑 (延迟1.5秒等待页面稳定)
-        console.log("[自动评教] 检测到自动循环标记，即将执行...");
-        setTimeout(() => {
-            if (sessionStorage.getItem('UJS_AI_AUTO') === 'true') {
-                ensureAiUi();
-                aiAutoLoop();
-            } else {
-                listener(true);
-            }
-        }, 1500);
-    } else {
-        // 未运行时，显示开始按钮
-        // 同时也保留一个单次填充按钮
-        const $onceBtn = $(`<button type="button" class="ant-btn --lcandy2-mycos-auto-review" style="${btnStyle}">仅填充</button>`);
-        $onceBtn.on("click", () => listener(false));
-
-        const $aiBtn = $(`<button type="button" class="ant-btn --lcandy2-mycos-auto-review" style="${btnStyle}">AI建议</button>`);
-        $aiBtn.on("click", () => {
-          ensureAiUi();
-          const panel = document.getElementById("ujs-ai-panel");
-          if (panel) panel.classList.add("open");
-        });
-
-        $parentElement.append($onceBtn).append($startBtn).append($aiBtn);
+  /** 课程详情页：点第一门未评，或并发开多标签 */
+  const runDetailsAuto = async () => {
+    dismissNoiseModals();
+    await waitFor(() => clickEvalSpans().length > 0, 10000);
+    const $evals = clickEvalSpans();
+    if (!$evals.length) {
+      setStatus('课程列表没有「评价」入口');
+      saveState({ running: false });
+      return;
     }
+
+    const concurrency = Math.max(1, Number(loadState().concurrency || config.concurrency) || 1);
+    if (concurrency <= 1 || typeof GM_openInTab !== 'function') {
+      setStatus(`打开第 1 / ${$evals.length} 门课…`);
+      $evals.first().trigger('click');
+      await waitFor(() => pageKind() === 'answer', 10000);
+      await sleep(config.delayNav);
+      await runFullAutoAnswerLoop();
+      return;
+    }
+
+    // 多标签并发：先串行采集 answer URL，再开多个标签跑全自动
+    setStatus(`采集课程链接用于 ${concurrency} 并发…`);
+    const urls = [];
+    const total = $evals.length;
+    for (let i = 0; i < total; i++) {
+      if (loadState().stop) break;
+      const href0 = location.href;
+      // 重新取，避免 DOM 失效
+      const $now = clickEvalSpans();
+      if (!$now.eq(i).length) break;
+      $now.eq(i).trigger('click');
+      const ok = await waitFor(() => pageKind() === 'answer', 8000);
+      if (ok) {
+        const u = location.href;
+        if (!urls.includes(u)) urls.push(u);
+        setStatus(`已采集 ${urls.length}/${total}`);
+        history.back();
+        await waitFor(() => pageKind() === 'details' || location.href !== u, 8000);
+        await sleep(500);
+      } else {
+        if (location.href !== href0) history.back();
+        await sleep(500);
+      }
+    }
+
+    if (!urls.length) {
+      setStatus('未能采集到答卷链接，改单页模式');
+      const $again = clickEvalSpans();
+      if ($again.length) $again.first().trigger('click');
+      await waitFor(() => pageKind() === 'answer', 10000);
+      await runFullAutoAnswerLoop();
+      return;
+    }
+
+    // 分波并发：每波打开 concurrency 个标签，各只交一门
+    saveState({ running: true, mode: 'concurrent', seedUrls: urls, seedIndex: 0 });
+    const waveSize = concurrency;
+    const wave = urls.slice(0, waveSize);
+    setStatus(`并发第1波：打开 ${wave.length} 个标签（共 ${urls.length} 门）`);
+    wave.forEach((u, idx) => {
+      const sep = u.includes('?') ? '&' : '?';
+      const link = u + sep + 'ujs_auto=1';
+      if (idx === 0) {
+        location.href = link;
+      } else if (typeof GM_openInTab === 'function') {
+        GM_openInTab(link, { active: false, setParent: true });
+      }
+    });
+    await waitFor(() => pageKind() === 'answer', 10000);
+    // 本页作为 worker 只交当前门
+    if (!isSubmitted()) await runAnswerOnce();
+    setStatus('本波当前页已提交。其余标签独立完成；全部完成后回列表点「全自动」续跑即可');
+    saveState({ running: false, seedIndex: waveSize });
+  };
+
+  /** 任务主列表：依次点问卷「评价」 */
+  const runMainAuto = async () => {
+    dismissNoiseModals();
+    await waitFor(() => clickEvalSpans().length > 0, 10000);
+    const $evals = clickEvalSpans();
+    if (!$evals.length) {
+      setStatus('没有未完成问卷');
+      saveState({ running: false });
+      return;
+    }
+    setStatus(`进入问卷 1 / ${$evals.length}`);
+    saveState({ running: true, mode: 'full', mainIndex: 0, mainTotal: $evals.length });
+    $evals.first().trigger('click');
+    await waitFor(() => pageKind() === 'details' || pageKind() === 'answer', 10000);
+    await sleep(config.delayNav);
+    if (pageKind() === 'details') await runDetailsAuto();
+    else if (pageKind() === 'answer') await runFullAutoAnswerLoop();
+  };
+
+  const startFullAuto = async () => {
+    saveState({
+      running: true,
+      stop: false,
+      mode: 'full',
+      doneCount: loadState().doneCount || 0,
+      concurrency: Number($(`#${PANEL_ID} .ujs-conc`).val() || config.concurrency)
+    });
+    dismissNoiseModals();
+    const kind = pageKind();
+    setStatus(`全自动启动（页面: ${kind}）`);
+    try {
+      if (kind === 'answer') await runFullAutoAnswerLoop();
+      else if (kind === 'details') await runDetailsAuto();
+      else if (kind === 'main') await runMainAuto();
+      else {
+        location.href = 'https://ujs.mycospxk.com/index.html#/my-task/main/UnFinished';
+        await sleep(2000);
+        await runMainAuto();
+      }
+    } catch (e) {
+      setStatus(`全自动停止：${e.message || e}`);
+      saveState({ running: false });
+    }
+  };
+
+  const stopFullAuto = () => {
+    saveState({ running: false, stop: true });
+    setStatus('已请求停止');
+  };
+
+  const findButtonParent = () => {
+    for (const sel of config.buttonParents) {
+      const $el = $(sel).first();
+      if ($el.length) return $el;
+    }
+    return $('body');
+  };
+
+  const addAnswerButtons = () => {
+    if (pageKind() !== 'answer') return;
+    if ($(`button.${config.buttonClass}`).length) return;
+    const $parent = findButtonParent();
+    const $fill = $(
+      `<button type="button" class="ant-btn ant-btn-default ${config.buttonClass}" style="margin-left:8px">一 键 评 教</button>`
+    ).on('click', async () => {
+      try {
+        await fillAllTeacherTabs();
+        setStatus('仅填充完成（未提交）');
+      } catch (e) {
+        setStatus(String(e.message || e));
+      }
+    });
+    const $fillSubmit = $(
+      `<button type="button" class="ant-btn ant-btn-primary ${config.buttonClass}" style="margin-left:8px">评 教 并 提 交</button>`
+    ).on('click', async () => {
+      try {
+        await runAnswerOnce();
+      } catch (e) {
+        setStatus(String(e.message || e));
+      }
+    });
+    $parent.append($fill).append($fillSubmit);
+  };
+
+  const ensurePanel = () => {
+    if (document.getElementById(PANEL_ID)) return;
+    const st = loadState();
+    const $panel = $(`
+      <div id="${PANEL_ID}" style="position:fixed;right:16px;bottom:16px;z-index:999999;background:#111c;color:#fff;padding:12px 14px;border-radius:10px;font:13px/1.4 sans-serif;min-width:220px;box-shadow:0 8px 24px #0006;backdrop-filter:blur(6px)">
+        <div style="font-weight:700;margin-bottom:6px">UJS 评教 ${'3.1.0'}</div>
+        <div class="ujs-status" style="margin-bottom:8px;opacity:.9">${st.statusText || '待命 · 好评混搭 · 无差评'}</div>
+        <label style="display:flex;align-items:center;gap:6px;margin-bottom:8px">并发
+          <input class="ujs-conc" type="number" min="1" max="5" value="${st.concurrency || config.concurrency}" style="width:48px;color:#111;border-radius:4px;border:0;padding:2px 4px"/>
+        </label>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button type="button" class="ujs-full" style="flex:1;padding:6px 8px;border:0;border-radius:6px;background:#1677ff;color:#fff;cursor:pointer">全自动</button>
+          <button type="button" class="ujs-stop" style="padding:6px 8px;border:0;border-radius:6px;background:#555;color:#fff;cursor:pointer">停止</button>
+        </div>
+        <div style="margin-top:8px;opacity:.7;font-size:12px">只选好评/次好评，不全满分</div>
+      </div>
+    `);
+    $panel.find('.ujs-full').on('click', () => startFullAuto());
+    $panel.find('.ujs-stop').on('click', () => stopFullAuto());
+    $panel.find('.ujs-conc').on('change', function () {
+      const v = Math.min(5, Math.max(1, Number(this.value) || 1));
+      this.value = v;
+      config.concurrency = v;
+      saveState({ concurrency: v });
+    });
+    $('body').append($panel);
   };
 
   const mycosTest = async () => {
+    if (/mycospxk\.com/i.test(location.hostname)) return true;
+    if ($('a:contains("MyCOS"), [class*="MyCOS"]').length) return true;
+    const $configJs = $('script').filter((_, el) => (($(el).attr('src') || '').includes('config.js')));
+    if (!$configJs.length) return false;
     try {
-      const configJs = $("script").filter((index, element) => {
-        const src = $(element).attr("src");
-        return src && src.includes("config.js");
-      });
-      if (!configJs.length) return false;
-      const response = await fetch(configJs.attr("src"));
-      if (!response.ok) return false;
-      const responseText = await response.text();
-      return responseText.includes("mycos");
+      const text = await (await fetch($configJs.attr('src'))).text();
+      return /mycos/i.test(text);
     } catch (e) {
       return false;
     }
   };
 
-  // --- 监听器 ---
-
   const watchUrlChange = (onChange) => {
-    const originalPushState = history.pushState;
-    history.pushState = function(state, title, url) {
-      originalPushState.apply(this, arguments);
-      onChange(url);
-    };
-    const originalReplaceState = history.replaceState;
-    history.replaceState = function(state, title, url) {
-      originalReplaceState.apply(this, arguments);
-      onChange(url);
-    };
-    window.addEventListener("popstate", () => {
-      onChange(document.location.href);
-    });
+    const wrap = (fn) =>
+      function () {
+        const ret = fn.apply(this, arguments);
+        onChange(location.href);
+        return ret;
+      };
+    history.pushState = wrap(history.pushState);
+    history.replaceState = wrap(history.replaceState);
+    window.addEventListener('popstate', () => onChange(location.href));
+    window.addEventListener('hashchange', () => onChange(location.href));
   };
 
-  // 这里的 removeModal 是处理提交后的“确认提交”弹窗
-  const removeModal = ($button) => {
-    // 只有在点击提交后，且按钮可用时才点击
-    if (!$button.prop("disabled")) {
-        console.log("[自动评教] 自动确认弹窗");
-        $button.trigger("click");
+  const onRoute = async () => {
+    dismissNoiseModals();
+    ensurePanel();
+    addAnswerButtons();
+
+    const st = loadState();
+    const autoParam = /[?&]ujs_auto=1/.test(location.href) || /[?&]ujs_auto=1/.test(location.hash);
+
+    // 并发子标签：只处理当前这一门，绝不点「下一课程」，避免多标签抢同一队列
+    if (autoParam && pageKind() === 'answer' && !st.workerStarted) {
+      saveState({ workerStarted: true, running: true, mode: 'worker' });
+      setTimeout(async () => {
+        try {
+          setStatus('并发子任务：填写并提交当前课程');
+          if (!isSubmitted()) await runAnswerOnce();
+          setStatus('并发子任务完成');
+          saveState({ running: false, workerStarted: true });
+        } catch (e) {
+          setStatus(`并发子任务失败：${e.message || e}`);
+          saveState({ running: false });
+        }
+      }, 800);
+      return;
+    }
+
+    // 全自动跨页续跑
+    if (st.running && !st.stop) {
+      if (pageKind() === 'answer') {
+        setTimeout(() => runFullAutoAnswerLoop(), 600);
+      } else if (pageKind() === 'details' && st.phase === 'after-batch') {
+        // 一门问卷跑完，回主列表找下一问卷
+        setTimeout(async () => {
+          setStatus('本问卷批次结束，检查是否还有未完成…');
+          const $toMain = $('a, button').filter((_, el) => /我的任务|任务列表/.test(($(el).text() || '')));
+          if ($toMain.length) $toMain.first().trigger('click');
+          else location.href = location.pathname + location.search + '#/my-task/main/UnFinished';
+          await sleep(1500);
+          saveState({ phase: '' });
+          const left = clickEvalSpans();
+          if (left.length) {
+            left.first().trigger('click');
+          } else {
+            setStatus('全部问卷已处理完');
+            saveState({ running: false });
+          }
+        }, 800);
+      } else if (pageKind() === 'details') {
+        setTimeout(() => runDetailsAuto(), 600);
+      } else if (pageKind() === 'main') {
+        setTimeout(() => runMainAuto(), 600);
+      }
     }
   };
 
-  const main = () => {
-    addReviewButton(executeReview);
-  };
-
-  const observer = (func, func2) => {
-    const observer2 = new MutationObserver((mutations) => {
-      for (let mutation of mutations) {
-        if (mutation.addedNodes.length) {
-          const $topContent = $(config.reviewParentElement);
-          const href = window.location.href;
-          const hrefTest = href.includes(config.reviewHref);
-
-          if ($topContent.length && hrefTest) {
-            // 这里不需要 disconnect，因为页面内跳转需要持续监听
-            func();
-          }
-
-          const $modalBody = $(config.reviewModalElement);
-          const $button = $modalBody.find("button.ant-btn-primary");
-          if ($modalBody.length && $button.length) {
-            // 如果开启了自动循环（规则版或 AI 版），或者是自动提交模式，则处理弹窗
-            // 为了安全，我们只在点击了自动按钮后才自动确认弹窗
-            if (sessionStorage.getItem('UJS_Auto_Loop') === 'true' || sessionStorage.getItem('UJS_AI_AUTO') === 'true' || config.autoSubmit) {
-                 func2($button);
-            }
-          }
-        }
-      }
-    });
-    observer2.observe(document.body, {
-      childList: true,
-      subtree: true
-    });
-  };
-
   $(async () => {
-    if (!await mycosTest()) return;
-
-    observer(main, removeModal);
-    watchUrlChange((newUrl) => {
-      // URL 变化时，重新注入按钮（如果需要）
-      setTimeout(main, 1000);
+    const ok = await mycosTest();
+    if (!ok) return;
+    log('UJS Auto Review 3.1.0 / MyCOS 4.5.x');
+    ensurePanel();
+    addAnswerButtons();
+    const mo = new MutationObserver(() => {
+      dismissNoiseModals();
+      addAnswerButtons();
+      ensurePanel();
     });
+    mo.observe(document.documentElement, { childList: true, subtree: true });
+    watchUrlChange(() => setTimeout(onRoute, 350));
+    onRoute();
   });
-
 })(jQuery);

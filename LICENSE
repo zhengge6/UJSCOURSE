@@ -1,17 +1,24 @@
-MIT License
+Proprietary License
 
-Copyright (c) 2026 Zheng
+Copyright (c) 2026 Zheng. All Rights Reserved.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+This software and associated documentation files (the "Software") are the
+exclusive property of the copyright holder.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+PERMISSION
+You may use the Software for personal, non-commercial purposes only, on devices
+you control, solely to complete your own course-evaluation tasks.
 
+RESTRICTIONS
+Without prior written authorization from the copyright holder, you may NOT:
+
+1. Redistribute, publish, upload, mirror, or share the Software (in whole or in
+   part), including modified copies;
+2. Sell, sublicense, rent, lease, or commercially exploit the Software;
+3. Remove or alter copyright, license, or attribution notices;
+4. Use the Software to provide a service to third parties.
+
+NO WARRANTY
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -19,3 +26,5 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+For authorization requests, contact the repository owner.
