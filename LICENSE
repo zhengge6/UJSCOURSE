@@ -1,24 +1,15 @@
-Proprietary License
-
 Copyright (c) 2026 Zheng. All Rights Reserved.
 
-This software and associated documentation files (the "Software") are the
-exclusive property of the copyright holder.
+UJSCOURSE and its associated files (the "Software") are owned by the copyright
+holder.
 
-PERMISSION
-You may use the Software for personal, non-commercial purposes only, on devices
-you control, solely to complete your own course-evaluation tasks.
+You may install and use the Software for personal, non-commercial purposes on
+devices you control, solely for your own course-evaluation tasks.
 
-RESTRICTIONS
-Without prior written authorization from the copyright holder, you may NOT:
+Redistribution, publication, mirroring, commercial use, or offering the Software
+as a service to others requires prior written permission from the copyright
+holder.
 
-1. Redistribute, publish, upload, mirror, or share the Software (in whole or in
-   part), including modified copies;
-2. Sell, sublicense, rent, lease, or commercially exploit the Software;
-3. Remove or alter copyright, license, or attribution notices;
-4. Use the Software to provide a service to third parties.
-
-NO WARRANTY
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -27,4 +18,4 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
-For authorization requests, contact the repository owner.
+For permission requests, contact the repository owner.

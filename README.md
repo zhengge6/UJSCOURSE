@@ -11,7 +11,7 @@ Desktop userscript · full-auto loop · multi-teacher tabs · positive-only scor
 [![Version](https://img.shields.io/badge/version-3.1.0-0ea5e9?style=flat-square)](./auto.user.js)
 [![Platform](https://img.shields.io/badge/platform-Desktop%20only-111827?style=flat-square)](#access--entry)
 [![Target](https://img.shields.io/badge/target-MyCOS%204.5.x-8b5cf6?style=flat-square)](https://ujs.mycospxk.com/)
-[![License](https://img.shields.io/badge/license-Proprietary-dc2626?style=flat-square)](./LICENSE)
+[![License](https://img.shields.io/badge/license-All%20Rights%20Reserved-6b7280?style=flat-square)](./LICENSE)
 
 [English](./README.md) · [简体中文](./README-zh.md)
 
@@ -93,21 +93,17 @@ Edit `config` inside `auto.user.js`:
 3. **You are responsible.** You must follow Jiangsu University rules and applicable laws. Misuse (including assisting others at scale, commercial “evaluation services”, or abuse of the platform) is solely your liability.
 4. **No affiliation.** This project is **not** affiliated with, endorsed by, or sponsored by Jiangsu University or MyCOS / 麦可思.
 5. **Desktop scope.** Mobile layouts and mini-programs are out of scope; behavior there is undefined.
-6. **Distribution locked.** Redistribution without the author’s written authorization is prohibited — see [License](#license).
 
 ---
 
 ## License
 
-**Proprietary — All Rights Reserved.**
+Copyright (c) 2026 Zheng. All rights reserved.
 
-Copyright (c) 2026 Zheng.
+Personal installation and use on your own devices is welcome.  
+Redistribution and commercial use require prior written permission from the author.
 
-- Personal, non-commercial use on your own devices is allowed.
-- **Redistribution, republishing, mirroring, or sharing (modified or not) without prior written authorization is forbidden.**
-- Commercial use and third-party service wrapping are forbidden without authorization.
-
-See [`LICENSE`](./LICENSE) for the full terms.
+Full terms: [`LICENSE`](./LICENSE).
 
 ---
 
@@ -116,7 +112,7 @@ See [`LICENSE`](./LICENSE) for the full terms.
 ```text
 UJSCOURSE/
 ├── README.md / README-zh.md
-├── LICENSE                 # Proprietary
+├── LICENSE
 ├── logo.png
 └── auto.user.js            # Userscript v3.1.0
 ```

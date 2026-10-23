@@ -11,7 +11,7 @@
 [![Version](https://img.shields.io/badge/version-3.1.0-0ea5e9?style=flat-square)](./auto.user.js)
 [![Platform](https://img.shields.io/badge/platform-仅电脑端-111827?style=flat-square)](#入口教程)
 [![Target](https://img.shields.io/badge/target-MyCOS%204.5.x-8b5cf6?style=flat-square)](https://ujs.mycospxk.com/)
-[![License](https://img.shields.io/badge/license-禁止擅自分发-dc2626?style=flat-square)](./LICENSE)
+[![License](https://img.shields.io/badge/license-All%20Rights%20Reserved-6b7280?style=flat-square)](./LICENSE)
 
 [English](./README.md) · [简体中文](./README-zh.md)
 
@@ -93,19 +93,15 @@
 3. **后果自负。** 须遵守江苏大学相关规定与法律法规。滥用（含代他人规模化评教、商业代评等）责任由使用者自行承担。
 4. **非官方。** 本项目与江苏大学、麦可思 / MyCOS **无任何隶属或背书关系**。
 5. **仅电脑端。** 移动端 / 小程序界面不在支持范围。
-6. **禁止擅自分发。** 未经作者书面授权，不得传播、转载、镜像或二次分发，详见 [许可协议](#许可协议)。
 
 ---
 
 ## 许可协议
 
-**专有协议（Proprietary）— 保留所有权利。**
+Copyright (c) 2026 Zheng. 保留所有权利。
 
-Copyright (c) 2026 Zheng.
-
-- 允许在你本人设备上，出于非商业、个人评教目的使用。
-- **未经本人书面授权，不得分发、上传、转载、镜像或以任何形式分享本软件（含修改版）。**
-- 未经授权，不得商用，不得封装为对外服务。
+欢迎在本人设备上安装、自用。  
+对外分发或商用，请先取得作者书面许可。
 
 完整条款见 [`LICENSE`](./LICENSE)。
 
@@ -116,7 +112,7 @@ Copyright (c) 2026 Zheng.
 ```text
 UJSCOURSE/
 ├── README.md / README-zh.md
-├── LICENSE                 # 专有协议
+├── LICENSE
 ├── logo.png
 └── auto.user.js            # 用户脚本 v3.1.0
 ```
