@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         UJSCOURSE · 江苏大学自动评教
-// @namespace    
+// @namespace    https://github.com/zhengge6/UJSCOURSE
 // @version      3.3.2
 // @author       Zheng
 // @description  江苏大学 MyCOS 评教助手：自动填写、提交与下一课程；好评混搭；可选多标签并发。
