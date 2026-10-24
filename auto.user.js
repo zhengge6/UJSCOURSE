@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UJSCOURSE · 江苏大学自动评教
 // @namespace    
-// @version      3.2.0
+// @version      3.2.1
 // @author       Zheng
 // @description  MyCOS 4.5.x 全自动评教：多教师 Tab、自动提交、自动下一课程/下一问卷；好评混搭（不全满分、无差评）；可选多标签并发。
 // @license      All Rights Reserved
@@ -9,7 +9,7 @@
 // @match        *://*.edu.cn/*
 // @match        *://*.mycospxk.com/*
 // @require      https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js
-// @run-at       document-idle
+// @run-at       document-end
 // @grant        GM_openInTab
 // @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
@@ -99,8 +99,9 @@
     localStorage.setItem(LS_DONE, String(n));
     return n;
   };
-  const hasDisclaimer = () => localStorage.getItem(LS_DISC) === '1';
-  const setDisclaimer = () => localStorage.setItem(LS_DISC, '1');
+  // 每个浏览器会话使用前都必须再确认一次（sessionStorage）
+  const hasDisclaimer = () => sessionStorage.getItem(LS_DISC) === '1';
+  const setDisclaimer = () => sessionStorage.setItem(LS_DISC, '1');
   const readAct = () => {
     try {
       return JSON.parse(localStorage.getItem(LS_ACT) || 'null');
@@ -158,12 +159,24 @@
         .catch(reject);
     });
 
-  const showOverlayModal = ({ title, bodyHtml, footerHtml }) =>
+  const waitBody = () =>
     new Promise((resolve) => {
-      const id = 'ujs-gate-modal';
-      $('#' + id).remove();
-      const $box = $(`
-        <div id="${id}" style="position:fixed;inset:0;z-index:2147483646;background:rgba(8,12,20,.72);display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)">
+      if (document.body) return resolve(document.body);
+      const mo = new MutationObserver(() => {
+        if (document.body) {
+          mo.disconnect();
+          resolve(document.body);
+        }
+      });
+      mo.observe(document.documentElement, { childList: true });
+    });
+
+  const showOverlayModal = async ({ title, bodyHtml, footerHtml }) => {
+    await waitBody();
+    const id = 'ujs-gate-modal';
+    $('#' + id).remove();
+    const $box = $(`
+        <div id="${id}" style="position:fixed;inset:0;z-index:2147483646;background:rgba(8,12,20,.78);display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)">
           <div style="width:min(420px,100%);background:#0f172a;color:#e2e8f0;border-radius:14px;box-shadow:0 20px 50px #0008;border:1px solid #334155;overflow:hidden;font:14px/1.55 system-ui,sans-serif">
             <div style="padding:16px 18px 8px;font-weight:700;font-size:16px">${title}</div>
             <div class="ujs-gate-body" style="padding:4px 18px 12px">${bodyHtml}</div>
@@ -171,9 +184,9 @@
           </div>
         </div>
       `);
-      $('body').append($box);
-      resolve($box);
-    });
+    $(document.body).append($box);
+    return $box;
+  };
 
   const ensureDisclaimer = async () => {
     if (hasDisclaimer()) return true;
@@ -258,6 +271,10 @@
   };
 
   const gateBeforeRun = async () => {
+    if (!hasDisclaimer()) {
+      const agreed = await ensureDisclaimer();
+      if (!agreed) return false;
+    }
     if (needsActivation()) {
       const ok = await ensureActivation(true);
       if (!ok) {
@@ -700,7 +717,7 @@
     const st = loadState();
     const $panel = $(`
       <div id="${PANEL_ID}" style="position:fixed;right:16px;bottom:16px;z-index:999999;background:#111c;color:#fff;padding:12px 14px;border-radius:10px;font:13px/1.4 sans-serif;min-width:220px;box-shadow:0 8px 24px #0006;backdrop-filter:blur(6px)">
-        <div style="font-weight:700;margin-bottom:6px">UJS 评教 ${'3.2.0'}</div>
+        <div style="font-weight:700;margin-bottom:6px">UJS 评教 ${'3.2.1'}</div>
         <div class="ujs-status" style="margin-bottom:8px;opacity:.9">${st.statusText || `待命 · 已评 ${getDoneCount()} 门 · 好评混搭`}</div>
         <label style="display:flex;align-items:center;gap:6px;margin-bottom:8px">并发
           <input class="ujs-conc" type="number" min="1" max="5" value="${st.concurrency || config.concurrency}" style="width:48px;color:#111;border-radius:4px;border:0;padding:2px 4px"/>
@@ -804,21 +821,26 @@
   };
 
   $(async () => {
-    const ok = await mycosTest();
-    if (!ok) return;
-    log('UJS Auto Review 3.2.0 / MyCOS 4.5.x');
+    // 使用前：先弹免责声明，未同意前不测页面、不挂面板、不跑自动
     const agreed = await ensureDisclaimer();
     if (!agreed) return;
+    const ok = await mycosTest();
+    if (!ok) return;
+    log('UJS Auto Review 3.2.1 / MyCOS 4.5.x');
     if (needsActivation()) await ensureActivation(true);
     ensurePanel();
     addAnswerButtons();
     const mo = new MutationObserver(() => {
+      if (!hasDisclaimer()) return;
       dismissNoiseModals();
       addAnswerButtons();
       ensurePanel();
     });
     mo.observe(document.documentElement, { childList: true, subtree: true });
-    watchUrlChange(() => setTimeout(onRoute, 350));
+    watchUrlChange(() => {
+      if (!hasDisclaimer()) return;
+      setTimeout(onRoute, 350);
+    });
     onRoute();
   });
 })(jQuery);
