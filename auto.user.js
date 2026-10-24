@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UJSCOURSE · 江苏大学自动评教
 // @namespace    
-// @version      3.2.2
+// @version      3.3.0
 // @author       Zheng
 // @description  MyCOS 4.5.x 全自动评教：多教师 Tab、自动提交、自动下一课程/下一问卷；好评混搭（不全满分、无差评）；可选多标签并发。
 // @license      All Rights Reserved
@@ -19,18 +19,21 @@
 // @grant        unsafeWindow
 // @connect      119.3.127.104
 // @connect      raw.githubusercontent.com
+// @connect      github.com
 // ==/UserScript==
 
 (function ($) {
   'use strict';
 
-  const STORAGE_KEY = 'ujs_auto_review_state_v32';
+  const STORAGE_KEY = 'ujs_auto_review_state_v33';
   const PANEL_ID = 'ujs-auto-review-panel';
   const LS_DISC = 'ujs_ar_disc_v32';
   const LS_ACT = 'ujs_ar_act_v32';
   const LS_DONE = 'ujs_ar_done_v32';
+  const LS_GH = 'ujs_ar_gh_opened_v33';
   const FREE_QUOTA = 5;
   const QQ_CONTACT = '1142573554';
+  const GH_HOME = 'https://github.com/zhengge6';
   const DISCLAIMER_TEXT =
     '这个项目仅用于学习测试，不得用于正式/违反学校规定的测试，后果自担！';
 
@@ -193,13 +196,59 @@
     return $box;
   };
 
+  const openGitHubOnce = () => {
+    if (localStorage.getItem(LS_GH) === '1') return;
+    localStorage.setItem(LS_GH, '1');
+    try {
+      if (typeof GM_openInTab === 'function') {
+        GM_openInTab(GH_HOME, { active: true, setParent: true });
+      } else {
+        window.open(GH_HOME, '_blank', 'noopener');
+      }
+    } catch (e) {
+      /* ignore */
+    }
+  };
+
+  const showThanksQQ = async () => {
+    if (document.getElementById('ujs-gate-modal')) return;
+    const $box = await showOverlayModal({
+      title: '评教完成',
+      bodyHtml: `
+        <p style="margin:0 0 10px">本轮评教已跑完。</p>
+        <p style="margin:0 0 8px">如果脚本对你有帮助，可以加个 QQ 好友：</p>
+        <p style="margin:0;font-size:22px;font-weight:700;letter-spacing:1px;color:#93c5fd">${QQ_CONTACT}</p>
+        <p style="margin:10px 0 0;opacity:.7;font-size:12px">复制后到 QQ 添加即可；不强制。</p>
+      `,
+      footerHtml: `
+        <button type="button" class="ujs-qq-copy" style="padding:8px 12px;border:0;border-radius:8px;background:#334155;color:#e2e8f0;cursor:pointer">复制 QQ</button>
+        <button type="button" class="ujs-qq-ok" style="padding:8px 16px;border:0;border-radius:8px;background:#1677ff;color:#fff;cursor:pointer;font-weight:600">好的</button>
+      `
+    });
+    $box.find('.ujs-qq-copy').on('click', async () => {
+      try {
+        await navigator.clipboard.writeText(QQ_CONTACT);
+        $box.find('.ujs-qq-copy').text('已复制');
+      } catch (e) {
+        $box.find('.ujs-qq-copy').text(QQ_CONTACT);
+      }
+    });
+    $box.find('.ujs-qq-ok').on('click', () => $box.remove());
+  };
+
+  const markAllDone = () => {
+    setStatus('全部问卷已处理完');
+    saveState({ running: false });
+    showThanksQQ();
+  };
+
   const ensureDisclaimer = async () => {
     if (hasDisclaimer()) return true;
     const $box = await showOverlayModal({
       title: '使用前须知',
       bodyHtml: `
         <p style="margin:0 0 10px;opacity:.95">${DISCLAIMER_TEXT}</p>
-        <p style="margin:0 0 8px;opacity:.75;font-size:12px">请在下方输入「同意」后继续（须完全一致）。</p>
+        <p style="margin:0 0 8px;opacity:.75;font-size:12px">请在下方输入「同意」后继续（须完全一致）。首次使用会打开作者 GitHub 主页。</p>
         <input class="ujs-disc-input" type="text" placeholder="请输入：同意" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid #475569;background:#1e293b;color:#f8fafc;outline:none"/>
         <div class="ujs-disc-err" style="color:#f87171;font-size:12px;margin-top:6px;min-height:18px"></div>
       `,
@@ -216,6 +265,7 @@
         }
         setDisclaimer();
         $box.remove();
+        openGitHubOnce();
         resolve(true);
       };
       $box.find('.ujs-disc-ok').on('click', tryOk);
@@ -722,7 +772,7 @@
     const st = loadState();
     const $panel = $(`
       <div id="${PANEL_ID}" style="position:fixed;right:16px;bottom:16px;z-index:999999;background:#111c;color:#fff;padding:12px 14px;border-radius:10px;font:13px/1.4 sans-serif;min-width:220px;box-shadow:0 8px 24px #0006;backdrop-filter:blur(6px)">
-        <div style="font-weight:700;margin-bottom:6px">UJS 评教 ${'3.2.2'}</div>
+        <div style="font-weight:700;margin-bottom:6px">UJS 评教 ${'3.3.0'}</div>
         <div class="ujs-status" style="margin-bottom:8px;opacity:.9">${st.statusText || `待命 · 已评 ${getDoneCount()} 门 · 好评混搭`}</div>
         <label style="display:flex;align-items:center;gap:6px;margin-bottom:8px">并发
           <input class="ujs-conc" type="number" min="1" max="5" value="${st.concurrency || config.concurrency}" style="width:48px;color:#111;border-radius:4px;border:0;padding:2px 4px"/>
@@ -813,8 +863,7 @@
           if (left.length) {
             left.first().trigger('click');
           } else {
-            setStatus('全部问卷已处理完');
-            saveState({ running: false });
+            markAllDone();
           }
         }, 800);
       } else if (pageKind() === 'details') {
@@ -831,7 +880,7 @@
     if (!agreed) return;
     const ok = await mycosTest();
     if (!ok) return;
-    log('UJS Auto Review 3.2.2 / MyCOS 4.5.x');
+    log('UJS Auto Review 3.3.0 / MyCOS 4.5.x');
     if (needsActivation()) await ensureActivation(true);
     ensurePanel();
     addAnswerButtons();
