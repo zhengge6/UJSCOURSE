@@ -1,19 +1,24 @@
 // ==UserScript==
 // @name         UJSCOURSE · 江苏大学自动评教
 // @namespace    
-// @version      3.2.1
+// @version      3.2.2
 // @author       Zheng
 // @description  MyCOS 4.5.x 全自动评教：多教师 Tab、自动提交、自动下一课程/下一问卷；好评混搭（不全满分、无差评）；可选多标签并发。
 // @license      All Rights Reserved
 // @icon         https://ts3.tc.mm.bing.net/th/id/ODF.OBdTb_bnewqEd7HjDCi4mg?w=32&h=32&qlt=90&pcl=fffffa&o=6&pid=1.2
 // @match        *://*.edu.cn/*
 // @match        *://*.mycospxk.com/*
+// @updateURL    https://raw.githubusercontent.com/zhengge6/UJSCOURSE/main/auto.user.js
+// @downloadURL  https://raw.githubusercontent.com/zhengge6/UJSCOURSE/main/auto.user.js
+// @supportURL   https://github.com/zhengge6/UJSCOURSE/issues
+// @homepageURL  https://github.com/zhengge6/UJSCOURSE
 // @require      https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js
 // @run-at       document-end
 // @grant        GM_openInTab
 // @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
 // @connect      119.3.127.104
+// @connect      raw.githubusercontent.com
 // ==/UserScript==
 
 (function ($) {
@@ -99,9 +104,9 @@
     localStorage.setItem(LS_DONE, String(n));
     return n;
   };
-  // 每个浏览器会话使用前都必须再确认一次（sessionStorage）
-  const hasDisclaimer = () => sessionStorage.getItem(LS_DISC) === '1';
-  const setDisclaimer = () => sessionStorage.setItem(LS_DISC, '1');
+  // 同意一次即可（localStorage 持久）
+  const hasDisclaimer = () => localStorage.getItem(LS_DISC) === '1';
+  const setDisclaimer = () => localStorage.setItem(LS_DISC, '1');
   const readAct = () => {
     try {
       return JSON.parse(localStorage.getItem(LS_ACT) || 'null');
@@ -717,7 +722,7 @@
     const st = loadState();
     const $panel = $(`
       <div id="${PANEL_ID}" style="position:fixed;right:16px;bottom:16px;z-index:999999;background:#111c;color:#fff;padding:12px 14px;border-radius:10px;font:13px/1.4 sans-serif;min-width:220px;box-shadow:0 8px 24px #0006;backdrop-filter:blur(6px)">
-        <div style="font-weight:700;margin-bottom:6px">UJS 评教 ${'3.2.1'}</div>
+        <div style="font-weight:700;margin-bottom:6px">UJS 评教 ${'3.2.2'}</div>
         <div class="ujs-status" style="margin-bottom:8px;opacity:.9">${st.statusText || `待命 · 已评 ${getDoneCount()} 门 · 好评混搭`}</div>
         <label style="display:flex;align-items:center;gap:6px;margin-bottom:8px">并发
           <input class="ujs-conc" type="number" min="1" max="5" value="${st.concurrency || config.concurrency}" style="width:48px;color:#111;border-radius:4px;border:0;padding:2px 4px"/>
@@ -826,7 +831,7 @@
     if (!agreed) return;
     const ok = await mycosTest();
     if (!ok) return;
-    log('UJS Auto Review 3.2.1 / MyCOS 4.5.x');
+    log('UJS Auto Review 3.2.2 / MyCOS 4.5.x');
     if (needsActivation()) await ensureActivation(true);
     ensurePanel();
     addAnswerButtons();
