@@ -16,6 +16,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 BASE = Path(__file__).resolve().parent
+WEB = BASE / "web"
 DB = BASE / "activate.db"
 SECRET_FILE = BASE / ".runtime_secret"
 HOST = os.environ.get("UJS_HOST", "0.0.0.0")
@@ -39,6 +40,8 @@ def load_secrets() -> tuple[str, str]:
 
 
 SECRET, ADMIN_KEY = load_secrets()
+# Optional web-admin password (preferred for /admin UI). Falls back to ADMIN_KEY.
+ADMIN_PASSWORD = (os.environ.get("UJS_ADMIN_PASSWORD") or "").strip() or ADMIN_KEY
 
 
 def db() -> sqlite3.Connection:
@@ -126,15 +129,40 @@ class Handler(BaseHTTPRequestHandler):
         if not key:
             qs = parse_qs(urlparse(self.path).query)
             key = (qs.get("admin_key") or [""])[0]
-        return hmac.compare_digest(key, ADMIN_KEY)
+        if not key:
+            return False
+        if hmac.compare_digest(key, ADMIN_KEY):
+            return True
+        if ADMIN_PASSWORD and hmac.compare_digest(key, ADMIN_PASSWORD):
+            return True
+        return False
 
     def do_OPTIONS(self):
         self.send_response(204)
         self._cors()
         self.end_headers()
 
+    def _file(self, rel: str, content_type: str):
+        path = (WEB / rel).resolve()
+        if not str(path).startswith(str(WEB.resolve())) or not path.is_file():
+            return self._json(404, {"ok": False, "msg": "not found"})
+        raw = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(raw)))
+        self._cors()
+        self.end_headers()
+        self.wfile.write(raw)
+
     def do_GET(self):
         path = urlparse(self.path).path
+        # behind /ujs-act proxy, prefix may be kept or stripped
+        if path.startswith("/ujs-act"):
+            path = path[len("/ujs-act") :] or "/"
+        if path in ("/", "/index.html", "/activate", "/activate.html"):
+            return self._file("index.html", "text/html; charset=utf-8")
+        if path in ("/admin", "/admin.html"):
+            return self._file("admin.html", "text/html; charset=utf-8")
         if path == "/health":
             return self._json(200, {"ok": True, "ts": int(time.time())})
         if path == "/v1/admin/list":
@@ -149,6 +177,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = urlparse(self.path).path
+        if path.startswith("/ujs-act"):
+            path = path[len("/ujs-act") :] or "/"
         data = self._body()
 
         if path == "/v1/activate":
@@ -213,6 +243,27 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json(403, {"ok": False, "msg": "revoked"})
             return self._json(200, {"ok": True, "exp": payload["exp"]})
 
+        if path == "/v1/device-token":
+            device = str(data.get("device") or "").strip()[:128]
+            if not device:
+                return self._json(400, {"ok": False, "msg": "missing device"})
+            now = int(time.time())
+            with db() as conn:
+                bind = conn.execute(
+                    """
+                    SELECT b.token, b.exp, c.disabled
+                    FROM binds b JOIN codes c ON c.code = b.code
+                    WHERE b.device=? AND b.exp > ?
+                    ORDER BY b.exp DESC LIMIT 1
+                    """,
+                    (device, now),
+                ).fetchone()
+            if not bind or bind["disabled"]:
+                return self._json(404, {"ok": False, "msg": "not activated"})
+            return self._json(
+                200, {"ok": True, "token": bind["token"], "exp": bind["exp"]}
+            )
+
         if path == "/v1/admin/issue":
             if not self._admin_ok():
                 return self._json(401, {"ok": False, "msg": "unauthorized"})
@@ -243,7 +294,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     init_db()
     print(f"[ujs-act] listening on {HOST}:{PORT}")
-    print(f"[ujs-act] admin key: {ADMIN_KEY}")
+    print("[ujs-act] admin UI: /admin")
     httpd = ThreadingHTTPServer((HOST, PORT), Handler)
     httpd.serve_forever()
 

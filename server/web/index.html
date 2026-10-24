@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UJSCOURSE 激活</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --card: #121a2b;
+      --line: #243044;
+      --text: #e8eef8;
+      --muted: #b6c4da;
+      --accent: #3b82f6;
+      --qq: #12b7f5;
+      --ok: #34d399;
+      --bad: #f87171;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font: 15px/1.6 system-ui, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(900px 420px at 10% -10%, #1d4ed633, transparent 60%),
+        radial-gradient(700px 380px at 100% 0%, #0ea5e922, transparent 55%),
+        var(--bg);
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+    .card {
+      width: min(440px, 100%);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 28px 24px 22px;
+      box-shadow: 0 24px 60px #0006;
+    }
+    h1 { margin: 0 0 8px; font-size: 22px; }
+    p { margin: 0 0 12px; color: var(--muted); }
+    .qq-box {
+      margin: 4px 0 18px;
+      padding: 14px 14px 12px;
+      border-radius: 12px;
+      border: 1px solid #1e4a63;
+      background: linear-gradient(135deg, #0c2a3a 0%, #132033 100%);
+    }
+    .qq-box .label {
+      font-size: 12px;
+      color: #9ec9dc;
+      margin-bottom: 6px;
+    }
+    .qq-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .qq-num {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: #e8f7ff;
+      font-variant-numeric: tabular-nums;
+    }
+    .qq-copy {
+      border: 0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      background: var(--qq);
+      color: #04202c;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .qq-copy:hover { filter: brightness(1.06); }
+    .qq-hint {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #9ec9dc;
+    }
+    label { display: block; margin: 14px 0 6px; font-size: 13px; color: var(--muted); }
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #0b1322;
+      color: var(--text);
+      outline: none;
+      letter-spacing: .4px;
+    }
+    input:focus { border-color: var(--accent); }
+    .row { display: flex; gap: 10px; margin-top: 16px; }
+    button.action {
+      flex: 1;
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-weight: 650;
+      cursor: pointer;
+    }
+    .primary { background: #1d4ed8; color: #fff; }
+    .ghost { background: #1e293b; color: var(--text); }
+    .msg { min-height: 22px; margin-top: 12px; font-size: 13px; }
+    .ok { color: var(--ok); }
+    .bad { color: var(--bad); }
+    .tip {
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      font-size: 12px;
+      color: var(--muted);
+    }
+    a { color: #93c5fd; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>UJSCOURSE 激活</h1>
+    <p>试用额度用完后，在此完成激活即可继续使用评教助手。激活仅绑定本机浏览器。</p>
+
+    <div class="qq-box">
+      <div class="label">加 QQ 获取激活码</div>
+      <div class="qq-row">
+        <span class="qq-num" id="qqNum">1142573554</span>
+        <button type="button" class="qq-copy" id="btnCopyQq">复制 QQ</button>
+      </div>
+      <div class="qq-hint">添加好友后说明「评教激活」，作者会发给你激活码。</div>
+    </div>
+
+    <label for="code">已有激活码？在此填写</label>
+    <input id="code" placeholder="例如 UJS-XXXX-XXXX" autocomplete="off" />
+    <div class="row">
+      <button class="action ghost" type="button" id="btnHelp">使用说明</button>
+      <button class="action primary" type="button" id="btnGo">激活</button>
+    </div>
+    <div class="msg" id="msg"></div>
+    <div class="tip">
+      项目主页：<a href="https://github.com/zhengge6/UJSCOURSE">github.com/zhengge6/UJSCOURSE</a><br />
+      激活成功后请返回评教页面继续操作。
+    </div>
+  </main>
+  <script>
+    (function () {
+      const msg = document.getElementById("msg");
+      const codeEl = document.getElementById("code");
+      const qq = "1142573554";
+      const params = new URLSearchParams(location.search);
+      function deviceId() {
+        const fromQuery = (params.get("device") || "").trim();
+        if (fromQuery) return fromQuery.slice(0, 64);
+        const deviceKey = "ujs_ar_dev_v32";
+        let id = localStorage.getItem(deviceKey);
+        if (!id) {
+          id = "d" + Math.random().toString(36).slice(2) + Date.now().toString(36);
+          localStorage.setItem(deviceKey, id);
+        }
+        return id.slice(0, 64);
+      }
+      function setMsg(text, ok) {
+        msg.textContent = text || "";
+        msg.className = "msg " + (ok ? "ok" : "bad");
+      }
+      async function copyText(text) {
+        try {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(text);
+            return true;
+          }
+        } catch (e) {}
+        try {
+          const ta = document.createElement("textarea");
+          ta.value = text;
+          ta.setAttribute("readonly", "");
+          ta.style.position = "fixed";
+          ta.style.left = "-9999px";
+          document.body.appendChild(ta);
+          ta.select();
+          const ok = document.execCommand("copy");
+          document.body.removeChild(ta);
+          return ok;
+        } catch (e) {
+          return false;
+        }
+      }
+      document.getElementById("btnCopyQq").onclick = async function () {
+        const ok = await copyText(qq);
+        setMsg(ok ? "QQ 号已复制：" + qq : "复制失败，请手动添加 " + qq, ok);
+      };
+      document.getElementById("btnHelp").onclick = function () {
+        setMsg("先加 QQ " + qq + " 获取激活码，再粘贴到上方输入框点击激活。", true);
+      };
+      document.getElementById("btnGo").onclick = async function () {
+        const code = (codeEl.value || "").trim().toUpperCase();
+        if (!code) {
+          setMsg("请输入激活码；没有的话先加 QQ " + qq);
+          return;
+        }
+        setMsg("校验中…", true);
+        try {
+          const res = await fetch("./v1/activate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code: code, device: deviceId() })
+          });
+          const data = await res.json();
+          if (!data || !data.ok || !data.token) {
+            setMsg((data && data.msg) || "激活失败");
+            return;
+          }
+          localStorage.setItem(
+            "ujs_ar_act_v32",
+            JSON.stringify({ token: data.token, exp: data.exp, at: Date.now() })
+          );
+          setMsg("激活成功。请回到评教页继续使用。", true);
+        } catch (e) {
+          setMsg("网络异常，请稍后重试");
+        }
+      };
+      codeEl.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") document.getElementById("btnGo").click();
+      });
+    })();
+  </script>
+</body>
+</html>

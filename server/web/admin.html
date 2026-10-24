@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UJSCOURSE 管理</title>
+  <style>
+    :root {
+      --bg: #0b1220;
+      --card: #121a2b;
+      --line: #243044;
+      --text: #e8eef8;
+      --muted: #b6c4da;
+      --accent: #1d4ed8;
+      --ok: #34d399;
+      --bad: #f87171;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font: 15px/1.55 system-ui, "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(900px 420px at 10% -10%, #1d4ed633, transparent 60%),
+        var(--bg);
+      display: grid;
+      place-items: start center;
+      padding: 28px 16px 40px;
+    }
+    .card {
+      width: min(720px, 100%);
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 24px 60px #0006;
+    }
+    h1 { margin: 0 0 6px; font-size: 22px; }
+    .sub { margin: 0 0 16px; color: var(--muted); font-size: 13px; }
+    label { display: block; margin: 12px 0 6px; font-size: 13px; color: var(--muted); }
+    input, select {
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #0b1322;
+      color: var(--text);
+      outline: none;
+    }
+    input:focus, select:focus { border-color: #3b82f6; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+    .row > * { flex: 1; min-width: 120px; }
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-weight: 650;
+      cursor: pointer;
+      background: var(--accent);
+      color: #fff;
+    }
+    button.ghost { background: #1e293b; color: var(--text); }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .msg { min-height: 20px; margin-top: 10px; font-size: 13px; }
+    .ok { color: var(--ok); }
+    .bad { color: var(--bad); }
+    .hidden { display: none !important; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 14px;
+      font-size: 13px;
+    }
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 8px 6px;
+      text-align: left;
+      vertical-align: top;
+      word-break: break-all;
+    }
+    th { color: var(--muted); font-weight: 600; }
+    .codes {
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 10px;
+      background: #0b1322;
+      border: 1px solid var(--line);
+      white-space: pre-wrap;
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 13px;
+    }
+    .grid2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    @media (max-width: 640px) {
+      .grid2 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>UJSCOURSE 管理</h1>
+    <p class="sub">登录后可生成激活码、查看近期码列表。</p>
+
+    <section id="loginBox">
+      <label for="pwd">管理密码</label>
+      <input id="pwd" type="password" autocomplete="current-password" />
+      <div class="row">
+        <button type="button" id="btnLogin">登录</button>
+        <a class="ghost" href="./" style="display:flex;align-items:center;justify-content:center;text-decoration:none;border-radius:10px;padding:11px 14px;background:#1e293b;color:#e8eef8;font-weight:650">返回激活页</a>
+      </div>
+      <div class="msg" id="loginMsg"></div>
+    </section>
+
+    <section id="panel" class="hidden">
+      <div class="grid2">
+        <div>
+          <label for="count">生成数量</label>
+          <input id="count" type="number" min="1" max="100" value="1" />
+        </div>
+        <div>
+          <label for="maxDevices">每码可用设备数</label>
+          <input id="maxDevices" type="number" min="1" max="10" value="1" />
+        </div>
+      </div>
+      <label for="note">备注（可选）</label>
+      <input id="note" type="text" maxlength="200" placeholder="例如：某用户" />
+      <div class="row">
+        <button type="button" id="btnIssue">生成激活码</button>
+        <button type="button" class="ghost" id="btnRefresh">刷新列表</button>
+        <button type="button" class="ghost" id="btnLogout">退出</button>
+      </div>
+      <div class="msg" id="panelMsg"></div>
+      <div class="codes hidden" id="newCodes"></div>
+      <table>
+        <thead>
+          <tr>
+            <th>激活码</th>
+            <th>备注</th>
+            <th>设备</th>
+            <th>状态</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </section>
+  </main>
+  <script>
+    (function () {
+      const KEY = "ujs_ar_admin_key";
+      const pwdEl = document.getElementById("pwd");
+      const loginMsg = document.getElementById("loginMsg");
+      const panelMsg = document.getElementById("panelMsg");
+      const loginBox = document.getElementById("loginBox");
+      const panel = document.getElementById("panel");
+      const tbody = document.getElementById("tbody");
+      const newCodes = document.getElementById("newCodes");
+
+      function apiBase() {
+        return location.pathname.replace(/\/admin(?:\.html)?\/?$/, "/") || "/";
+      }
+      function api(path) {
+        const base = apiBase();
+        return base.replace(/\/?$/, "/") + String(path).replace(/^\//, "");
+      }
+      function setMsg(el, text, ok) {
+        el.textContent = text || "";
+        el.className = "msg " + (ok ? "ok" : "bad");
+      }
+      function getKey() {
+        return sessionStorage.getItem(KEY) || "";
+      }
+      function setKey(v) {
+        if (v) sessionStorage.setItem(KEY, v);
+        else sessionStorage.removeItem(KEY);
+      }
+      async function req(path, opts) {
+        const headers = Object.assign({}, (opts && opts.headers) || {});
+        const key = getKey();
+        if (key) headers["X-Admin-Key"] = key;
+        if (opts && opts.body && !headers["Content-Type"]) {
+          headers["Content-Type"] = "application/json";
+        }
+        const res = await fetch(api(path), Object.assign({}, opts, { headers: headers }));
+        let data = null;
+        try {
+          data = await res.json();
+        } catch (e) {
+          data = null;
+        }
+        return { res: res, data: data };
+      }
+      function fmtTime(ts) {
+        if (!ts) return "";
+        try {
+          return new Date(Number(ts) * 1000).toLocaleString();
+        } catch (e) {
+          return String(ts);
+        }
+      }
+      async function refreshList() {
+        const { res, data } = await req("v1/admin/list");
+        if (!res.ok || !data || !data.ok) {
+          setMsg(panelMsg, (data && data.msg) || "列表加载失败", false);
+          if (res.status === 401) showLogin();
+          return;
+        }
+        tbody.innerHTML = "";
+        (data.items || []).forEach(function (it) {
+          const tr = document.createElement("tr");
+          const status = it.disabled ? "已禁用" : "正常";
+          tr.innerHTML =
+            "<td>" +
+            (it.code || "") +
+            "</td><td>" +
+            (it.note || "") +
+            "<div style='color:#94a3b8;font-size:12px'>" +
+            fmtTime(it.created_at) +
+            "</div></td><td>" +
+            (it.used_count || 0) +
+            " / " +
+            (it.max_devices || 1) +
+            "</td><td>" +
+            status +
+            "</td>";
+          tbody.appendChild(tr);
+        });
+        setMsg(panelMsg, "已加载 " + ((data.items && data.items.length) || 0) + " 条", true);
+      }
+      function showPanel() {
+        loginBox.classList.add("hidden");
+        panel.classList.remove("hidden");
+        refreshList();
+      }
+      function showLogin() {
+        setKey("");
+        panel.classList.add("hidden");
+        loginBox.classList.remove("hidden");
+      }
+      document.getElementById("btnLogin").onclick = async function () {
+        const pwd = (pwdEl.value || "").trim();
+        if (!pwd) {
+          setMsg(loginMsg, "请输入管理密码", false);
+          return;
+        }
+        setKey(pwd);
+        const { res, data } = await req("v1/admin/list");
+        if (!res.ok || !data || !data.ok) {
+          setKey("");
+          setMsg(loginMsg, (data && data.msg) || "密码错误", false);
+          return;
+        }
+        setMsg(loginMsg, "", true);
+        showPanel();
+      };
+      pwdEl.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") document.getElementById("btnLogin").click();
+      });
+      document.getElementById("btnLogout").onclick = function () {
+        showLogin();
+        setMsg(loginMsg, "已退出", true);
+      };
+      document.getElementById("btnRefresh").onclick = refreshList;
+      document.getElementById("btnIssue").onclick = async function () {
+        const count = Math.max(1, Math.min(100, Number(document.getElementById("count").value) || 1));
+        const maxDevices = Math.max(
+          1,
+          Math.min(10, Number(document.getElementById("maxDevices").value) || 1)
+        );
+        const note = (document.getElementById("note").value || "").trim();
+        const { res, data } = await req("v1/admin/issue", {
+          method: "POST",
+          body: JSON.stringify({ count: count, max_devices: maxDevices, note: note })
+        });
+        if (!res.ok || !data || !data.ok) {
+          setMsg(panelMsg, (data && data.msg) || "生成失败", false);
+          if (res.status === 401) showLogin();
+          return;
+        }
+        const codes = data.codes || [];
+        newCodes.textContent = codes.join("\n");
+        newCodes.classList.remove("hidden");
+        setMsg(panelMsg, "已生成 " + codes.length + " 个激活码", true);
+        refreshList();
+      };
+      if (getKey()) {
+        req("v1/admin/list").then(function (r) {
+          if (r.res.ok && r.data && r.data.ok) showPanel();
+          else showLogin();
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

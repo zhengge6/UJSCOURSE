@@ -1,0 +1,26 @@
+{
+  "name": "ujscourse",
+  "version": "3.3.2",
+  "private": true,
+  "description": "Jiangsu University MyCOS auto course-evaluation userscript",
+  "main": "auto.src.js",
+  "scripts": {
+    "sync": "node tools/sync-release.mjs",
+    "build": "node tools/sync-release.mjs",
+    "obfuscate": "node tools/obfuscate.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhengge6/UJSCOURSE.git"
+  },
+  "author": "Zheng",
+  "license": "UNLICENSED",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/zhengge6/UJSCOURSE/issues"
+  },
+  "homepage": "https://github.com/zhengge6/UJSCOURSE#readme",
+  "devDependencies": {
+    "javascript-obfuscator": "^5.9.0"
+  }
+}

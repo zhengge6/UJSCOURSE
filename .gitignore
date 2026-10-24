@@ -3,6 +3,13 @@
 Thumbs.db
 *.local
 
+# node build
+node_modules/
+package-lock.json
+
+# private obfuscated build (not for ScriptCat)
+auto.obf.user.js
+
 # userscript caches / backups
 *.user.js.bak
 *.user.js.old
