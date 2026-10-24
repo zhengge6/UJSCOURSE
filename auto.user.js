@@ -687,8 +687,7 @@
     await waitFor(() => clickEvalSpans().length > 0, 10000);
     const $evals = clickEvalSpans();
     if (!$evals.length) {
-      setStatus('没有未完成问卷');
-      saveState({ running: false });
+      markAllDone();
       return;
     }
     setStatus(`进入问卷 1 / ${$evals.length}`);
