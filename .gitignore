@@ -6,3 +6,9 @@ Thumbs.db
 # userscript caches / backups
 *.user.js.bak
 *.user.js.old
+
+# activation server secrets / runtime
+server/.runtime_secret
+server/activate.db
+server/__pycache__/
+server/*.pyc

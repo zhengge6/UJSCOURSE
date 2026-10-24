@@ -8,7 +8,7 @@
 
 Desktop userscript · full-auto loop · multi-teacher tabs · positive-only scoring
 
-[![Version](https://img.shields.io/badge/version-3.1.0-0ea5e9?style=flat-square)](./auto.user.js)
+[![Version](https://img.shields.io/badge/version-3.2.0-0ea5e9?style=flat-square)](./auto.user.js)
 [![Platform](https://img.shields.io/badge/platform-Desktop%20only-111827?style=flat-square)](#access--entry)
 [![Target](https://img.shields.io/badge/target-MyCOS%204.5.x-8b5cf6?style=flat-square)](https://ujs.mycospxk.com/)
 [![License](https://img.shields.io/badge/license-All%20Rights%20Reserved-6b7280?style=flat-square)](./LICENSE)
@@ -88,11 +88,16 @@ Edit `config` inside `auto.user.js`:
 
 ## Disclaimer
 
+On first launch the script shows a modal. You must type **同意** (exactly) to continue.
+
+Modal copy: this project is for learning / testing only; do not use it for formal evaluations or in ways that violate school rules; you accept the consequences.
+
 1. **Personal use only.** Use this software only on **your own** account to complete **your own** evaluation tasks.
 2. **No warranty.** The software is provided “as is”. The author is not responsible for failed submits, account restrictions, data loss, or any academic / administrative consequences.
 3. **You are responsible.** You must follow Jiangsu University rules and applicable laws. Misuse (including assisting others at scale, commercial “evaluation services”, or abuse of the platform) is solely your liability.
 4. **No affiliation.** This project is **not** affiliated with, endorsed by, or sponsored by Jiangsu University or MyCOS / 麦可思.
 5. **Desktop scope.** Mobile layouts and mini-programs are out of scope; behavior there is undefined.
+6. **Trial & activation.** After 5 successful auto-submits, an activation code is required (contact QQ `1142573554`).
 
 ---
 
@@ -114,13 +119,15 @@ UJSCOURSE/
 ├── README.md / README-zh.md
 ├── LICENSE
 ├── logo.png
-└── auto.user.js            # Userscript v3.1.0
+├── auto.user.js            # Userscript v3.2.0
+└── server/app.py           # Activation API (author-hosted)
 ```
 
 ## Changelog
 
 | Version | Notes |
 |---|---|
+| **3.2.0** | Disclaimer modal (type 同意); activation after 5 submits (QQ) |
 | **3.1.0** | Full auto, multi-teacher, positive mix, multi-tab concurrency, 4.5.x scales |
 | **2.5.0** | Prior AI-assisted loop (historical) |
 | **2.4.x** | Prior continuous next-course flow |
