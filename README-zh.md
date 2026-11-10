@@ -8,7 +8,7 @@
 
 电脑端油猴 / 脚本猫 · 全自动下一课 · 多教师 Tab · 好评混搭 · 免差评
 
-[![Version](https://img.shields.io/badge/version-3.3.2-0ea5e9?style=flat-square)](./auto.user.js)
+[![Version](https://img.shields.io/badge/version-3.3.3-0ea5e9?style=flat-square)](./auto.user.js)
 [![Platform](https://img.shields.io/badge/platform-仅电脑端-111827?style=flat-square)](#入口教程)
 [![Target](https://img.shields.io/badge/target-MyCOS%204.5.x-8b5cf6?style=flat-square)](https://ujs.mycospxk.com/)
 [![GitHub stars](https://img.shields.io/github/stars/zhengge6/UJSCOURSE?style=flat-square)](https://github.com/zhengge6/UJSCOURSE/stargazers)
@@ -33,7 +33,7 @@
 | 学校 | 江苏大学 Jiangsu University（UJS） |
 | 平台 | MyCOS / 麦可思 · `ujs.mycospxk.com` · 综合门户「教学质量管理平台」 |
 | 形态 | 浏览器用户脚本 `auto.user.js`（可读源码，适合脚本猫上架） |
-| 版本 | **v3.3.2** |
+| 版本 | **v3.3.3** |
 | 仓库 | https://github.com/zhengge6/UJSCOURSE |
 
 > 本项目与江苏大学、麦可思 / MyCOS **无隶属或官方背书关系**，仅供本人学习测试与自用。
@@ -74,7 +74,7 @@
 - **一键评教** — 只填充不提交  
 - **评教并提交** — 填完全部教师 Tab 并提交当前课  
 
-首次使用须在弹窗中输入「**同意**」。自动成功提交满 **5** 门后需激活；在激活页加 QQ **1142573554** 获取激活码。
+打开评教页即可使用，无需弹窗确认，也没有试用次数限制。
 
 ---
 
@@ -87,7 +87,6 @@
 | **好评混搭** | 仅好评档；不全满分；无差评 / 一般 |
 | **多标签并发** | 可选 `1`–`5`，各标签只交一门 |
 | **MyCOS 4.5.x** | 适配「差 → 好」从左到右的选项顺序 |
-| **免责 + 激活** | 使用前确认；试用额度后服务端激活 |
 
 ---
 
@@ -104,9 +103,6 @@ A：可以。上架脚本猫请使用可读版 `auto.user.js`（不要上传重�
 
 **Q：手机能用吗？**  
 A：不能。请用电脑 Chrome / Edge。
-
-**Q：激活码怎么拿？**  
-A：试用满 5 门后脚本会打开激活页；加 QQ `1142573554` 说明「评教激活」即可。
 
 ---
 
@@ -137,16 +133,13 @@ npm run sync    # 同步可读版 → auto.user.js（脚本猫 / GitHub 安装�
 
 ## 免责声明
 
-**首次打开脚本会弹窗。** 必须准确输入「同意」后才能使用。
-
-弹窗文案：这个项目仅用于学习测试，不得用于正式/违反学校规定的测试，后果自担！
+这个项目仅用于学习测试，不得用于正式/违反学校规定的测试，后果自担！
 
 1. **仅限本人使用。** 只可在你自己的账号上，完成你自己的评教任务。  
 2. **不提供任何担保。** 软件按现状提供。提交失败、账号受限、数据异常、学业或行政后果等，作者不承担责任。  
 3. **后果自负。** 须遵守江苏大学相关规定与法律法规。滥用（含代他人规模化评教、商业代评等）责任由使用者自行承担。  
 4. **非官方。** 与江苏大学、麦可思 / MyCOS 无任何隶属或背书关系。  
-5. **仅电脑端。** 移动端 / 小程序不在支持范围。  
-6. **试用与激活。** 自动评教成功满 5 门后需激活码。
+5. **仅电脑端。** 移动端 / 小程序不在支持范围。
 
 ---
 
@@ -169,15 +162,16 @@ UJSCOURSE/
 ├── LICENSE
 ├── logo.png
 ├── auto.src.js             # 可读开发源码
-├── auto.user.js            # 发布 / 脚本猫安装（v3.3.2）
+├── auto.user.js            # 发布 / 脚本猫安装（v3.3.3）
 ├── tools/sync-release.mjs  # npm run sync
-└── server/                 # 激活页与校验 API
+└── server/                 # 旧激活服务，脚本已不再调用
 ```
 
 ## 版本
 
 | 版本 | 说明 |
 |---|---|
+| **3.3.3** | 去掉使用前确认弹窗和试用激活，打开即可评教 |
 | **3.3.2** | 优化激活流程与说明文档 |
 | **3.3.1** | 支持在网页完成激活 |
 | **3.2.x** | 使用前须确认；试用后需激活 |

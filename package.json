@@ -1,6 +1,6 @@
 {
   "name": "ujscourse",
-  "version": "3.3.2",
+  "version": "3.3.3",
   "private": true,
   "description": "Jiangsu University MyCOS auto course-evaluation userscript",
   "main": "auto.src.js",

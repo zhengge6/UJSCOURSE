@@ -8,7 +8,7 @@
 
 Desktop Tampermonkey / ScriptCat · full-auto next course · multi-teacher tabs · positive-only mix
 
-[![Version](https://img.shields.io/badge/version-3.3.2-0ea5e9?style=flat-square)](./auto.user.js)
+[![Version](https://img.shields.io/badge/version-3.3.3-0ea5e9?style=flat-square)](./auto.user.js)
 [![Platform](https://img.shields.io/badge/platform-Desktop%20only-111827?style=flat-square)](#access--entry)
 [![Target](https://img.shields.io/badge/target-MyCOS%204.5.x-8b5cf6?style=flat-square)](https://ujs.mycospxk.com/)
 [![GitHub stars](https://img.shields.io/github/stars/zhengge6/UJSCOURSE?style=flat-square)](https://github.com/zhengge6/UJSCOURSE/stargazers)
@@ -33,7 +33,7 @@ Search-friendly names: `UJSCOURSE`, `Jiangsu University auto evaluation`, `UJS M
 | University | Jiangsu University (UJS) |
 | Platform | MyCOS · `ujs.mycospxk.com` · portal app「教学质量管理平台」 |
 | Deliverable | Readable userscript [`auto.user.js`](./auto.user.js) (ScriptCat-friendly) |
-| Version | **v3.3.2** |
+| Version | **v3.3.3** |
 | Repo | https://github.com/zhengge6/UJSCOURSE |
 
 > Not affiliated with, endorsed by, or sponsored by Jiangsu University or MyCOS / 麦可思.
@@ -70,7 +70,7 @@ Also on answer pages:
 - **One-click fill** — populate only  
 - **Fill & submit** — fill every teacher tab and submit  
 
-First run requires typing **同意** in the disclaimer modal. After **5** successful auto-submits, activation is required (QQ `1142573554` on the activation page).
+Open an evaluation page and use the panel. There is no consent popup and no trial limit.
 
 ---
 
@@ -83,7 +83,6 @@ First run requires typing **同意** in the disclaimer modal. After **5** succes
 | **Safe scoring** | Positive-only mix; never average/negative; never all-max |
 | **Concurrency** | Optional multi-tab workers (`1`–`5`) |
 | **MyCOS 4.5.x** | Handles reversed Likert order (poor → excellent) |
-| **Gate** | Disclaimer + trial quota + server activation |
 
 ---
 
@@ -128,16 +127,13 @@ Optional private obfuscated file (do **not** upload to ScriptCat): `npm run obfu
 
 ## Disclaimer
 
-On first launch you must type **同意** exactly to continue.
-
 This project is for learning / testing only; do not use it for formal evaluations or in ways that violate school rules; you accept the consequences.
 
 1. **Personal use only** on your own account and your own tasks.  
 2. **No warranty.** Provided “as is”.  
 3. **You are responsible** for university rules and applicable law.  
 4. **No affiliation** with Jiangsu University or MyCOS / 麦可思.  
-5. **Desktop scope only.**  
-6. **Trial & activation** after 5 successful auto-submits.
+5. **Desktop scope only.**
 
 ---
 
@@ -160,15 +156,16 @@ UJSCOURSE/
 ├── LICENSE
 ├── logo.png
 ├── auto.src.js             # editable source
-├── auto.user.js            # release / ScriptCat install (v3.3.2)
+├── auto.user.js            # release / ScriptCat install (v3.3.3)
 ├── tools/sync-release.mjs
-└── server/                 # activation UI + API
+└── server/                 # legacy activation service; the script no longer calls it
 ```
 
 ## Changelog
 
 | Version | Notes |
 |---|---|
+| **3.3.3** | Removed the consent popup and trial activation; usable immediately |
 | **3.3.2** | Smoother activation flow and docs |
 | **3.3.1** | Activate in a web page |
 | **3.2.x** | First-use confirmation; activation after trial |

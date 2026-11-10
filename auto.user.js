@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         UJSCOURSE · 江苏大学自动评教
 // @namespace    https://github.com/zhengge6/UJSCOURSE
-// @version      3.3.2
+// @version      3.3.3
 // @author       Zheng
 // @description  江苏大学 MyCOS 评教助手：自动填写、提交与下一课程；好评混搭；可选多标签并发。
 // @license      All Rights Reserved
@@ -15,42 +15,16 @@
 // @require      https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js
 // @run-at       document-end
 // @grant        GM_openInTab
-// @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
-// @connect      119.3.127.104
 // @connect      raw.githubusercontent.com
 // ==/UserScript==
 
 (function ($) {
   'use strict';
 
-  /* 轻量字符串解包：源码可读，发布前再经 javascript-obfuscator 加固 */
-  const _xd = (arr, k) =>
-    arr
-      .map((n, i) => String.fromCharCode(n ^ ((k + i * 7) & 255)))
-      .join('');
-  const STORAGE_KEY = _xd(
-    [238, 200, 218, 239, 214, 203, 177, 163, 140, 168, 132, 158, 134, 147, 138, 91, 120, 102, 120, 84, 66, 113, 67, 15, 112],
-    0x9b
-  );
+  const STORAGE_KEY = 'ujs_auto_review_state_v33';
   const PANEL_ID = 'ujs-auto-review-panel';
-  const LS_DISC = _xd([238, 200, 218, 239, 214, 204, 154, 168, 186, 169, 130, 183, 153, 197, 207], 0x9b);
-  const LS_ACT = _xd([238, 200, 218, 239, 214, 204, 154, 173, 176, 174, 190, 158, 220, 196], 0x9b);
-  const LS_DONE = _xd([238, 200, 218, 239, 214, 204, 154, 168, 188, 180, 132, 183, 153, 197, 207], 0x9b);
-  const LS_DEV = _xd([238, 200, 218, 239, 214, 204, 154, 168, 182, 172, 190, 158, 220, 196], 0x9b);
-  const FREE_QUOTA = 3 ^ 6; /* 5 */
-  const DISCLAIMER_TEXT =
-    '这个项目仅用于学习测试，不得用于正式/违反学校规定的测试，后果自担！';
-
-  /* 激活服务地址（运行时拼接） */
-  const apiRoot = () => {
-    const parts = ['aHR0cDovLw==', 'MTE5LjMu', 'MTI3LjEwNC8=', 'dWpzLWFjdA=='];
-    return parts.map((p) => atob(p)).join('');
-  };
-  const epActivate = () => apiRoot() + ['/', 'v', '1', '/', 'act', 'ivate'].join('');
-  const epDeviceToken = () => apiRoot() + ['/', 'v', '1', '/', 'device', '-token'].join('');
-  const activatePageUrl = (device) =>
-    apiRoot() + '/?device=' + encodeURIComponent(device || '');
+  const LS_DONE = 'ujs_ar_done_v32';
 
   const config = {
     // 语义档位只允许 0/1：最正面 / 次正面。禁止一般及差评
@@ -114,248 +88,9 @@
     localStorage.setItem(LS_DONE, String(n));
     return n;
   };
-  // 同意一次即可（localStorage 持久）
-  const hasDisclaimer = () => localStorage.getItem(LS_DISC) === '1';
-  const setDisclaimer = () => localStorage.setItem(LS_DISC, '1');
-  const readAct = () => {
-    try {
-      return JSON.parse(localStorage.getItem(LS_ACT) || 'null');
-    } catch (e) {
-      return null;
-    }
-  };
-  /* 完整性探针：改配额/跳过激活时尽量让逻辑不一致 */
-  const _quotaOk = () => FREE_QUOTA === (3 ^ 6) && FREE_QUOTA > 0;
-  const _gateSeal = () => {
-    if (!_quotaOk()) return false;
-    try {
-      const t = readAct();
-      if (t && t.token && !(Number(t.exp) * 1000 > Date.now())) {
-        localStorage.removeItem(LS_ACT);
-      }
-    } catch (e) {}
-    return true;
-  };
-  const isActivated = () => {
-    if (!_quotaOk()) return false;
-    const t = readAct();
-    return !!(t && t.token && Number(t.exp) * 1000 > Date.now());
-  };
-  const needsActivation = () =>
-    _gateSeal() && getDoneCount() >= FREE_QUOTA && !isActivated();
-  const deviceId = () => {
-    let id = localStorage.getItem(LS_DEV);
-    if (!id) {
-      id =
-        'd' +
-        Math.random().toString(36).slice(2) +
-        Date.now().toString(36) +
-        (navigator.userAgent || '').length;
-      localStorage.setItem(LS_DEV, id);
-    }
-    return id.slice(0, 64);
-  };
-
-  const gmPost = (url, body) =>
-    new Promise((resolve, reject) => {
-      const payload = JSON.stringify(body);
-      if (typeof GM_xmlhttpRequest === 'function') {
-        GM_xmlhttpRequest({
-          method: 'POST',
-          url,
-          headers: { 'Content-Type': 'application/json' },
-          data: payload,
-          timeout: 15000,
-          onload: (res) => {
-            try {
-              resolve({ status: res.status, data: JSON.parse(res.responseText || '{}') });
-            } catch (e) {
-              reject(e);
-            }
-          },
-          onerror: () => reject(new Error('network')),
-          ontimeout: () => reject(new Error('timeout'))
-        });
-        return;
-      }
-      fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: payload
-      })
-        .then(async (r) => ({ status: r.status, data: await r.json().catch(() => ({})) }))
-        .then(resolve)
-        .catch(reject);
-    });
-
-  const waitBody = () =>
-    new Promise((resolve) => {
-      if (document.body) return resolve(document.body);
-      const mo = new MutationObserver(() => {
-        if (document.body) {
-          mo.disconnect();
-          resolve(document.body);
-        }
-      });
-      mo.observe(document.documentElement, { childList: true });
-    });
-
-  const showOverlayModal = async ({ title, bodyHtml, footerHtml }) => {
-    await waitBody();
-    const id = 'ujs-gate-modal';
-    $('#' + id).remove();
-    const $box = $(`
-        <div id="${id}" style="position:fixed;inset:0;z-index:2147483646;background:rgba(8,12,20,.78);display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)">
-          <div style="width:min(420px,100%);background:#0f172a;color:#e2e8f0;border-radius:14px;box-shadow:0 20px 50px #0008;border:1px solid #334155;overflow:hidden;font:14px/1.55 system-ui,sans-serif">
-            <div style="padding:16px 18px 8px;font-weight:700;font-size:16px">${title}</div>
-            <div class="ujs-gate-body" style="padding:4px 18px 12px">${bodyHtml}</div>
-            <div class="ujs-gate-foot" style="padding:0 18px 16px;display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">${footerHtml}</div>
-          </div>
-        </div>
-      `);
-    $(document.body).append($box);
-    return $box;
-  };
-
-  const openActivatePage = (device) => {
-    const url = activatePageUrl(device);
-    try {
-      if (typeof GM_openInTab === 'function') {
-        GM_openInTab(url, { active: true, setParent: true });
-      } else {
-        window.open(url, '_blank', 'noopener');
-      }
-    } catch (e) {
-      /* ignore */
-    }
-  };
-
   const markAllDone = () => {
     setStatus('全部问卷已处理完，感谢使用');
     saveState({ running: false });
-  };
-
-  const ensureDisclaimer = async () => {
-    if (hasDisclaimer()) return true;
-    const $box = await showOverlayModal({
-      title: '使用前须知',
-      bodyHtml: `
-        <p style="margin:0 0 10px;opacity:.95">${DISCLAIMER_TEXT}</p>
-        <p style="margin:0 0 8px;opacity:.75;font-size:12px">请在下方输入「同意」后继续（须完全一致）。</p>
-        <input class="ujs-disc-input" type="text" placeholder="请输入：同意" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid #475569;background:#1e293b;color:#f8fafc;outline:none"/>
-        <div class="ujs-disc-err" style="color:#f87171;font-size:12px;margin-top:6px;min-height:18px"></div>
-      `,
-      footerHtml: `
-        <button type="button" class="ujs-disc-ok" style="padding:8px 16px;border:0;border-radius:8px;background:#1677ff;color:#fff;cursor:pointer;font-weight:600">继续</button>
-      `
-    });
-    return new Promise((resolve) => {
-      const tryOk = () => {
-        const v = ($box.find('.ujs-disc-input').val() || '').trim();
-        if (v !== '同意') {
-          $box.find('.ujs-disc-err').text('请准确输入「同意」');
-          return;
-        }
-        setDisclaimer();
-        $box.remove();
-        resolve(true);
-      };
-      $box.find('.ujs-disc-ok').on('click', tryOk);
-      $box.find('.ujs-disc-input').on('keydown', (e) => {
-        if (e.key === 'Enter') tryOk();
-      });
-    });
-  };
-
-  const pollDeviceActivation = async (device, timeoutMs = 180000) => {
-    const start = Date.now();
-    while (Date.now() - start < timeoutMs) {
-      try {
-        const res = await gmPost(epDeviceToken(), { device });
-        if (res.data && res.data.ok && res.data.token) {
-          localStorage.setItem(
-            LS_ACT,
-            JSON.stringify({ token: res.data.token, exp: res.data.exp, at: Date.now() })
-          );
-          return true;
-        }
-      } catch (e) {
-        /* keep polling */
-      }
-      await sleep(2000);
-      if (isActivated()) return true;
-    }
-    return isActivated();
-  };
-
-  const ensureActivation = async (force = false) => {
-    if (!force && !needsActivation()) return true;
-    if (!force && isActivated()) return true;
-    const device = deviceId();
-    openActivatePage(device);
-    const $box = await showOverlayModal({
-      title: '完成激活后继续',
-      bodyHtml: `
-        <p style="margin:0 0 8px">试用额度已用完（已评 <b>${getDoneCount()}</b> / ${FREE_QUOTA} 门）。</p>
-        <p style="margin:0 0 10px">已打开激活页面。请在新标签页完成激活，本页会自动检测结果。</p>
-        <p style="margin:0;opacity:.75;font-size:12px">若未自动打开，可点击下方「打开激活页」。</p>
-        <div class="ujs-act-err" style="color:#93c5fd;font-size:12px;margin-top:8px;min-height:18px">等待激活中…</div>
-      `,
-      footerHtml: `
-        <button type="button" class="ujs-act-later" style="padding:8px 12px;border:0;border-radius:8px;background:#334155;color:#e2e8f0;cursor:pointer">稍后再说</button>
-        <button type="button" class="ujs-act-open" style="padding:8px 12px;border:0;border-radius:8px;background:#1e40af;color:#fff;cursor:pointer">打开激活页</button>
-        <button type="button" class="ujs-act-ok" style="padding:8px 16px;border:0;border-radius:8px;background:#1677ff;color:#fff;cursor:pointer;font-weight:600">我已激活</button>
-      `
-    });
-    return new Promise((resolve) => {
-      let stopped = false;
-      const finish = (ok) => {
-        if (stopped) return;
-        stopped = true;
-        $box.remove();
-        resolve(ok);
-      };
-      $box.find('.ujs-act-later').on('click', () => finish(false));
-      $box.find('.ujs-act-open').on('click', () => openActivatePage(device));
-      $box.find('.ujs-act-ok').on('click', async () => {
-        $box.find('.ujs-act-err').text('正在确认…');
-        const ok = await pollDeviceActivation(device, 8000);
-        if (ok) {
-          setStatus('激活成功');
-          finish(true);
-        } else {
-          $box.find('.ujs-act-err').css('color', '#f87171').text('尚未检测到激活，请先在激活页完成');
-        }
-      });
-      pollDeviceActivation(device).then((ok) => {
-        if (ok) {
-          setStatus('激活成功');
-          finish(true);
-        } else if (!stopped) {
-          $box.find('.ujs-act-err').css('color', '#f87171').text('等待超时，可点「打开激活页」后重试');
-        }
-      });
-    });
-  };
-
-  const gateBeforeRun = async () => {
-    if (!_gateSeal()) {
-      setStatus('脚本完整性校验失败，请重新安装官方版本');
-      return false;
-    }
-    if (!hasDisclaimer()) {
-      const agreed = await ensureDisclaimer();
-      if (!agreed) return false;
-    }
-    if (needsActivation()) {
-      const ok = await ensureActivation(true);
-      if (!ok) {
-        setStatus(`已评 ${getDoneCount()} 门，请先完成激活后继续`);
-        saveState({ running: false, stop: true });
-        return false;
-      }
-    }
-    return true;
   };
 
   const pageKind = (href = location.href) => {
@@ -569,7 +304,6 @@
 
   /** 单页：填完全部教师并提交 */
   const runAnswerOnce = async () => {
-    if (!(await gateBeforeRun())) throw new Error('需要激活码');
     dismissNoiseModals();
     await waitFor(() => $('.ant-radio-group').length > 0, 10000);
     const n = await fillAllTeacherTabs();
@@ -578,12 +312,6 @@
     const total = bumpDoneCount();
     saveState({ doneCount: total });
     setStatus(`提交成功，累计 ${total} 门`);
-    if (needsActivation()) {
-      saveState({ running: false, stop: true });
-      setStatus(`已达免费额度 ${FREE_QUOTA} 门，请激活后继续`);
-      await ensureActivation(true);
-      if (!isActivated()) throw new Error('需要激活码');
-    }
   };
 
   /** 全自动：当前答卷 → 下一课程 循环；没有下一课程则回列表 */
@@ -717,7 +445,6 @@
   };
 
   const startFullAuto = async () => {
-    if (!(await gateBeforeRun())) return;
     saveState({
       running: true,
       stop: false,
@@ -764,7 +491,6 @@
       `<button type="button" class="ant-btn ant-btn-default ${config.buttonClass}" style="margin-left:8px">一 键 评 教</button>`
     ).on('click', async () => {
       try {
-        if (!(await gateBeforeRun())) return;
         await fillAllTeacherTabs();
         setStatus('仅填充完成（未提交）');
       } catch (e) {
@@ -788,7 +514,7 @@
     const st = loadState();
     const $panel = $(`
       <div id="${PANEL_ID}" style="position:fixed;right:16px;bottom:16px;z-index:999999;background:#111c;color:#fff;padding:12px 14px;border-radius:10px;font:13px/1.4 sans-serif;min-width:220px;box-shadow:0 8px 24px #0006;backdrop-filter:blur(6px)">
-        <div style="font-weight:700;margin-bottom:6px">UJS 评教 ${'3.3.1'}</div>
+        <div style="font-weight:700;margin-bottom:6px">UJS 评教 3.3.3</div>
         <div class="ujs-status" style="margin-bottom:8px;opacity:.9">${st.statusText || `待命 · 已评 ${getDoneCount()} 门 · 好评混搭`}</div>
         <label style="display:flex;align-items:center;gap:6px;margin-bottom:8px">并发
           <input class="ujs-conc" type="number" min="1" max="5" value="${st.concurrency || config.concurrency}" style="width:48px;color:#111;border-radius:4px;border:0;padding:2px 4px"/>
@@ -891,24 +617,18 @@
   };
 
   $(async () => {
-    // 使用前：先弹免责声明，未同意前不测页面、不挂面板、不跑自动
-    const agreed = await ensureDisclaimer();
-    if (!agreed) return;
     const ok = await mycosTest();
     if (!ok) return;
-    log('UJS Auto Review 3.3.1 / MyCOS 4.5.x');
-    if (needsActivation()) await ensureActivation(true);
+    log('UJS Auto Review 3.3.3 / MyCOS 4.5.x');
     ensurePanel();
     addAnswerButtons();
     const mo = new MutationObserver(() => {
-      if (!hasDisclaimer()) return;
       dismissNoiseModals();
       addAnswerButtons();
       ensurePanel();
     });
     mo.observe(document.documentElement, { childList: true, subtree: true });
     watchUrlChange(() => {
-      if (!hasDisclaimer()) return;
       setTimeout(onRoute, 350);
     });
     onRoute();
